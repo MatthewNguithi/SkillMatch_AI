@@ -1,12 +1,8 @@
 import { useState } from "react";
 // import { matchEmployer } from "../components/api";
-import {
-  Card,
-  PrimaryButton,
-  Spinner,
-  ErrorBanner,
-} from "../components/UI";
+import { Card, PrimaryButton, Spinner, ErrorBanner } from "../components/UI";
 import { CandidateCard } from "../components/Matchcard";
+import "../styles/global.css";
 
 export default function EmployerPage() {
   const [form, setForm] = useState({
@@ -24,29 +20,18 @@ export default function EmployerPage() {
 
   function handleChange(event) {
     const { name, value } = event.target;
-
-    setForm((previous) => ({
-      ...previous,
-      [name]: value,
-    }));
+    setForm((previous) => ({ ...previous, [name]: value }));
   }
 
   async function handleSubmit(event) {
     event.preventDefault();
-
     setLoading(true);
     setError("");
     setResults([]);
 
     try {
       const response = await matchEmployer(form);
-
-      const returnedResults =
-        response.results ||
-        response.matches ||
-        response.candidates ||
-        [];
-
+      const returnedResults = response.results || response.matches || response.candidates || [];
       setResults(returnedResults);
     } catch (err) {
       setError(err.message || "Unable to find matching candidates.");
@@ -56,9 +41,9 @@ export default function EmployerPage() {
   }
 
   return (
-    <div style={styles.page}>
-      <div style={styles.heading}>
-        <div style={styles.eyebrow}>EMPLOYER MATCHING</div>
+    <div className="page-container">
+      <div className="employer-heading">
+        <div className="eyebrow-text">EMPLOYER MATCHING</div>
         <h1>Find candidates with the right skills</h1>
         <p>
           Describe your internship or job opportunity and receive a ranked
@@ -66,12 +51,12 @@ export default function EmployerPage() {
         </p>
       </div>
 
-      <div style={styles.layout}>
+      <div className="employer-layout">
         <Card>
           <form onSubmit={handleSubmit}>
             <h2>Opportunity details</h2>
 
-            <div style={styles.formGroup}>
+            <div className="form-group">
               <label htmlFor="company">Company or organisation</label>
               <input
                 id="company"
@@ -80,11 +65,11 @@ export default function EmployerPage() {
                 onChange={handleChange}
                 placeholder="Enter company name"
                 required
-                style={styles.input}
+                className="form-input"
               />
             </div>
 
-            <div style={styles.formGroup}>
+            <div className="form-group">
               <label htmlFor="jobTitle">Job or internship title</label>
               <input
                 id="jobTitle"
@@ -93,11 +78,11 @@ export default function EmployerPage() {
                 onChange={handleChange}
                 placeholder="e.g. Junior Software Developer"
                 required
-                style={styles.input}
+                className="form-input"
               />
             </div>
 
-            <div style={styles.formGroup}>
+            <div className="form-group">
               <label htmlFor="description">Opportunity description</label>
               <textarea
                 id="description"
@@ -107,11 +92,11 @@ export default function EmployerPage() {
                 placeholder="Describe the role, responsibilities and expectations"
                 required
                 rows={5}
-                style={styles.textarea}
+                className="form-textarea"
               />
             </div>
 
-            <div style={styles.formGroup}>
+            <div className="form-group">
               <label htmlFor="requiredSkills">Required skills</label>
               <textarea
                 id="requiredSkills"
@@ -121,18 +106,18 @@ export default function EmployerPage() {
                 placeholder="e.g. Python, FastAPI, SQL, Git and REST APIs"
                 required
                 rows={3}
-                style={styles.textarea}
+                className="form-textarea"
               />
             </div>
 
-            <div style={styles.formGroup}>
+            <div className="form-group">
               <label htmlFor="county">Opportunity county</label>
               <select
                 id="county"
                 name="county"
                 value={form.county}
                 onChange={handleChange}
-                style={styles.input}
+                className="form-select"
               >
                 <option value="Nairobi">Nairobi</option>
                 <option value="Mombasa">Mombasa</option>
@@ -145,14 +130,14 @@ export default function EmployerPage() {
               </select>
             </div>
 
-            <div style={styles.formGroup}>
+            <div className="form-group">
               <label htmlFor="experienceLevel">Experience level</label>
               <select
                 id="experienceLevel"
                 name="experienceLevel"
                 value={form.experienceLevel}
                 onChange={handleChange}
-                style={styles.input}
+                className="form-select"
               >
                 <option value="Entry level">Entry level</option>
                 <option value="Internship">Internship</option>
@@ -169,24 +154,19 @@ export default function EmployerPage() {
         </Card>
 
         <div>
-          <div style={styles.resultsHeader}>
+          <div className="results-header">
             <h2>Recommended candidates</h2>
-            <span style={styles.resultCount}>
+            <span className="result-count">
               {results.length} candidate{results.length === 1 ? "" : "s"}
             </span>
           </div>
 
-          <ErrorBanner
-            message={error}
-            onDismiss={() => setError("")}
-          />
+          <ErrorBanner message={error} onDismiss={() => setError("")} />
 
-          {loading && (
-            <Spinner message="Comparing the opportunity with candidate profiles..." />
-          )}
+          {loading && <Spinner message="Comparing the opportunity with candidate profiles..." />}
 
           {!loading && !error && results.length === 0 && (
-            <Card style={styles.emptyState}>
+            <Card className="empty-state">
               <h3>Your candidate recommendations will appear here</h3>
               <p>
                 Enter the opportunity requirements and click the matching
@@ -208,74 +188,3 @@ export default function EmployerPage() {
     </div>
   );
 }
-
-const styles = {
-  page: {
-    maxWidth: "1180px",
-    margin: "0 auto",
-    padding: "2rem",
-  },
-
-  heading: {
-    maxWidth: "700px",
-    marginBottom: "2rem",
-  },
-
-  eyebrow: {
-    color: "#0E7C7B",
-    fontSize: "0.75rem",
-    fontWeight: 700,
-    letterSpacing: "0.08em",
-  },
-
-  layout: {
-    display: "grid",
-    gridTemplateColumns: "minmax(280px, 0.85fr) minmax(0, 1.15fr)",
-    gap: "2rem",
-    alignItems: "start",
-  },
-
-  formGroup: {
-    marginBottom: "1rem",
-  },
-
-  input: {
-    width: "100%",
-    boxSizing: "border-box",
-    marginTop: "0.4rem",
-    padding: "0.75rem",
-    border: "1px solid #d8d8d8",
-    borderRadius: "7px",
-    fontSize: "0.9rem",
-  },
-
-  textarea: {
-    width: "100%",
-    boxSizing: "border-box",
-    marginTop: "0.4rem",
-    padding: "0.75rem",
-    border: "1px solid #d8d8d8",
-    borderRadius: "7px",
-    fontSize: "0.9rem",
-    resize: "vertical",
-    fontFamily: "inherit",
-  },
-
-  resultsHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: "1rem",
-    marginBottom: "1rem",
-  },
-
-  resultCount: {
-    color: "#777",
-    fontSize: "0.85rem",
-  },
-
-  emptyState: {
-    textAlign: "center",
-    padding: "2rem",
-  },
-};
