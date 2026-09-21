@@ -1,10 +1,10 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import NavBar from "./components/NavBar";
-import HomePage from "./pages/HomePage";
-import StudentPage from "./pages/StudentPage";
-import EmployerPage from "./pages/EmployerPage";
-import LoginPage from "./pages/LoginPage";
-import "./styles/global.css";
+import NavBar from "./frontend/components/NavBar";
+import HomePage from "./frontend/pages/HomePage";
+import StudentPage from "./frontend/pages/StudentPage";
+import EmployerPage from "./frontend/pages/EmployerPage";
+import LoginPage from "./frontend/pages/LoginPage";
+import "./frontend/styles/global.css";
 
 export default function App() {
   return (
