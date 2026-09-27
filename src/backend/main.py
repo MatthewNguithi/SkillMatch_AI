@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from datetime import datetime
@@ -8,6 +9,9 @@ from model import User
 from schemas import UserRegister, UserLogin, Token, UserOut
 from auth import get_password_hash, verify_password, create_access_token
 from dependencies import get_current_user, require_roles
+
+# Import modular routers
+from routers import student, employer
 
 # Create tables automatically on launch
 Base.metadata.create_all(bind=engine)
@@ -51,8 +55,8 @@ def register(user_data: UserRegister, db: Session = Depends(get_db)):
 
 
 @app.post("/api/v1/auth/login", response_model=Token)
-def login(credentials: UserLogin, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == credentials.email).first()
+def login(credentials: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == credentials.username).first()
     
     if not user or not verify_password(credentials.password, user.password_hash):
         raise HTTPException(
@@ -83,11 +87,8 @@ def get_me(current_user: User = Depends(get_current_user)):
 # PROTECTED ROLE-BASED DEMO ROUTES
 # -------------------------------------------------------------
 
-@app.get("/api/v1/student/dashboard")
-def student_only_route(current_user: User = Depends(require_roles(["student", "informal_worker", "admin"]))):
-    return {"message": f"Welcome Student/Trainee {current_user.email}!"}
-
-
-@app.get("/api/v1/employer/dashboard")
-def employer_only_route(current_user: User = Depends(require_roles(["employer", "admin"]))):
-    return {"message": f"Welcome Employer {current_user.email}!"}
+# -------------------------------------------------------------
+# INCLUDE MODULAR ROUTERS
+# -------------------------------------------------------------
+app.include_router(student.router, prefix="/api/v1")
+app.include_router(employer.router, prefix="/api/v1")

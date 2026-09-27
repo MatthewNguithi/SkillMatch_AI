@@ -2,12 +2,15 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 // Helper function to attach the JWT token automatically
 async function fetchWithAuth(endpoint, options = {}) {
-  const token = localStorage.getItem("skillmatch_token");
+  const token = localStorage.getItem("access_token");
 
   const headers = {
-    "Content-Type": "application/json",
     ...(options.headers || {}),
   };
+
+  if (!(options.body instanceof FormData)) {
+    headers["Content-Type"] = "application/json";
+  }
 
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
@@ -20,7 +23,7 @@ async function fetchWithAuth(endpoint, options = {}) {
 
   if (response.status === 401) {
     // Token expired or invalid — clear storage and redirect to login
-    localStorage.removeItem("skillmatch_token");
+    localStorage.removeItem("access_token");
     localStorage.removeItem("skillmatch_role");
     window.location.href = "/login";
     throw new Error("Session expired. Please log in again.");
@@ -50,5 +53,16 @@ export async function matchEmployerCandidates(opportunityData) {
   return fetchWithAuth("/api/v1/employer/match", {
     method: "POST",
     body: JSON.stringify(opportunityData),
+  });
+}
+
+// -------------------------------------------------------------
+// New API Call for Student CV Upload (Multipart Form Data)
+// -------------------------------------------------------------
+
+export async function uploadStudentCV(formData) {
+  return fetchWithAuth("/api/v1/student/upload-cv", {
+    method: "POST",
+    body: formData
   });
 }
