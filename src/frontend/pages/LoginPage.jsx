@@ -36,7 +36,7 @@ export default function LoginPage() {
       }
 
       // Store JWT and user details in localStorage
-      localStorage.setItem("skillmatch_token", data.access_token);
+      localStorage.setItem("access_token", data.access_token);
       localStorage.setItem("skillmatch_role", data.role);
       localStorage.setItem("skillmatch_user_id", data.user_id);
 
