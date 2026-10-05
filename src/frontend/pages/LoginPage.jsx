@@ -22,11 +22,15 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
 
+    const formData = new URLSearchParams();
+    formData.append("username", form.email);
+    formData.append("password", form.password)
+
     try {
       const response = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: formData,
       });
 
       const data = await response.json();

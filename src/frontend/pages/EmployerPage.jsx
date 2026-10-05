@@ -1,5 +1,5 @@
-import { useState } from "react";
-// import { matchEmployer } from "../components/api";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom"; 
 import { Card, PrimaryButton, Spinner, ErrorBanner } from "../components/UI";
 import { CandidateCard } from "../components/Matchcard";
 import "../styles/global.css";
@@ -18,6 +18,15 @@ export default function EmployerPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const token = localStorage.getItem("access_token");
+    if(!token){
+      navigate("/login");
+    }
+  }, [navigate]);
+
   function handleChange(event) {
     const { name, value } = event.target;
     setForm((previous) => ({ ...previous, [name]: value }));
@@ -35,6 +44,9 @@ export default function EmployerPage() {
       setResults(returnedResults);
     } catch (err) {
       setError(err.message || "Unable to find matching candidates.");
+      if (err.message.includes("401") || err.message.includes("Unauthorized")) {
+        navigate("/login")
+      }
     } finally {
       setLoading(false);
     }

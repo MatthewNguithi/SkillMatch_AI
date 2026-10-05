@@ -199,7 +199,19 @@ small {
 /* =========================================
    EMPLOYER PAGE STYLES
 ========================================= */
-.employer-heading { max-width: 700px; margin-bottom: 2rem; }
+.employer-heading h1 {
+  font-size: 2.8rem;
+  line-height: 1.2;
+  margin: 0.5rem 0 1rem;
+  color: #0d2b55;
+}
+
+.employer-heading p {
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: #555;
+}
+.employer-heading { max-width: 1000px; margin-bottom: 2rem; }
 .employer-layout {
   display: grid;
   grid-template-columns: minmax(280px, 0.85fr) minmax(0, 1.15fr);
