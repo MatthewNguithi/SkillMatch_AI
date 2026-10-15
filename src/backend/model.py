@@ -1,19 +1,41 @@
-from sqlalchemy import Column, BigInteger, String, Boolean, DateTime, ForeignKey, Text
+from sqlalchemy import Column, BigInteger, Integer, String, Boolean, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from database import Base
 
 class User(Base):
     __tablename__ = "users"
-
-    id = Column(BigInteger, primary_key=True, index=True)
-    email = Column(String(255), unique=True, nullable=False, index=True)
-    password_hash = Column(String(255), nullable=False)
-    role = Column(String(50), nullable=False)  # 'student', 'informal_worker', 'employer', 'admin'
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    last_login = Column(DateTime(timezone=True), nullable=True)
+    
+    id = Column(Integer, primary_key=True, index=True)
+    first_name = Column(String, nullable=False)
+    last_name = Column(String, nullable=False)
+    phone_number = Column(String, nullable=True) # Useful if you choose SMS 2FA
+    email = Column(String, unique=True, index=True, nullable=False)
+    password_hash = Column(String, nullable=False)
+    role = Column(String, default="student")
+    
+    # 2FA and Verification fields
+    is_verified = Column(Boolean, default=False)
+    is_approved = Column(Boolean, default=False) 
+    otp_code = Column(String, nullable=True)
+    otp_expires_at = Column(DateTime, nullable=True)
+    
+    last_login = Column(DateTime, nullable=True)
 
     student_profile = relationship("Student", back_populates="user", uselist=False)
+    employer_profile = relationship("Employer", back_populates="user", uselist=False)
+
+class Employer(Base):
+    __tablename__ = "employers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
+
+    company_name = Column(String, nullable=False)
+    company_website = Column(String, nullable=True)
+    company_description = Column(Text, nullable=False)
+
+    student_profiles = relationship("User", secondary="employer_student_association", back_populates="employers_profile")
 
 class Student(Base):
     __tablename__ = "students"

@@ -26,6 +26,7 @@ export default function NavBar() {
       <NavLink to="/student" style={linkStyle}>Students</NavLink>
       <NavLink to="/employer" style={linkStyle}>Employers</NavLink>
       <NavLink to="/login" style={linkStyle}>Login</NavLink>
+      <NavLink to="/signup" style={linkStyle}>Sign Up</NavLink>
     </nav>
   );
 }
