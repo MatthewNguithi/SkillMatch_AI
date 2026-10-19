@@ -35,42 +35,10 @@ export default function NavBar() {
       </NavLink>
       
       <NavLink to="/" style={linkStyle}>Home</NavLink>
-
-      {!token ? (
-        // --- LOGGED OUT VIEW ---
-        <NavLink to="/login" style={linkStyle}>Login</NavLink>
-      ) : (
-        // --- LOGGED IN VIEW ---
-        <>
-          {role === "student" && (
-            <NavLink to="/student" style={linkStyle}>Students</NavLink>
-          )}
-          
-          {role === "employer" && (
-            <NavLink to="/employer" style={linkStyle}>Employers</NavLink>
-          )}
-
-          {role === "admin" && (
-            <NavLink to="/admin" style={linkStyle}>Admin Panel</NavLink>
-          )}
-
-          <button 
-            onClick={handleLogout} 
-            style={{ 
-              background: "transparent", 
-              border: "1px solid rgba(255, 255, 255, 0.3)", 
-              color: "#fff", 
-              padding: "0.35rem 1rem", 
-              borderRadius: "6px", 
-              cursor: "pointer",
-              fontSize: "0.9rem",
-              marginLeft: "0.5rem"
-            }}
-          >
-            Logout
-          </button>
-        </>
-      )}
+      <NavLink to="/student" style={linkStyle}>Students</NavLink>
+      <NavLink to="/employer" style={linkStyle}>Employers</NavLink>
+      <NavLink to="/login" style={linkStyle}>Login</NavLink>
+      <NavLink to="/signup" style={linkStyle}>Sign Up</NavLink>
     </nav>
   );
 }

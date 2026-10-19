@@ -3,9 +3,16 @@ from typing import Optional
 from datetime import datetime
 
 class UserRegister(BaseModel):
+    first_name: str
+    last_name: str
+    phone_number: str
     email: EmailStr
     password: str
-    role: str  # 'student', 'informal_worker', 'employer'
+    role: str
+
+class OTPVerify(BaseModel):
+    email: EmailStr
+    otp_code: str
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -19,9 +26,11 @@ class Token(BaseModel):
 
 class UserOut(BaseModel):
     id: int
+    first_name: str
+    last_name: str
     email: EmailStr
     role: str
-    created_at: datetime
+    # created_at: datetime # (Optional: ensure this exists in model.py if using it here)
 
     class Config:
         from_attributes = True

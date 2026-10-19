@@ -4,7 +4,10 @@ import HomePage from "./frontend/pages/HomePage";
 import StudentPage from "./frontend/pages/StudentPage";
 import EmployerPage from "./frontend/pages/EmployerPage";
 import LoginPage from "./frontend/pages/LoginPage";
+import RegistrationPage from "./frontend/pages/Registration/RegistrationPage";
+import "./frontend/pages/Registration/RegistrationPage"
 import "./frontend/styles/global.css";
+
 
 export default function App() {
   return (
@@ -18,6 +21,7 @@ export default function App() {
             <Route path="/student" element={<StudentPage />} />
             <Route path="/employer" element={<EmployerPage />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/signup" element={<RegistrationPage />} />
           </Routes>
         </main>
       </div>
