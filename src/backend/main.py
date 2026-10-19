@@ -13,7 +13,7 @@ from auth import get_password_hash, verify_password, create_access_token
 from dependencies import get_current_user, require_roles
 
 # Import modular routers
-from routers import student, employer
+from routers import student, employer, admin, matching
 
 # Create tables automatically on launch
 Base.metadata.create_all(bind=engine)
@@ -167,3 +167,6 @@ def get_me(current_user: User = Depends(get_current_user)):
 # -------------------------------------------------------------
 app.include_router(student.router, prefix="/api/v1")
 app.include_router(employer.router, prefix="/api/v1")
+
+app.include_router(matching.router, prefix="/api/v1")
+app.include_router(admin.router, prefix="/api/v1")

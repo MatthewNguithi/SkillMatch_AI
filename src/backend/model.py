@@ -1,6 +1,7 @@
 from sqlalchemy import Column, BigInteger, Integer, String, Boolean, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+from datetime import datetime
 from database import Base
 
 class User(Base):
@@ -56,3 +57,24 @@ class Student(Base):
     consent = Column(Boolean, default=False, nullable=False)
 
     user = relationship("User", back_populates="student_profile")
+
+class JobPosting(Base):
+    __tablename__ = "job_posting"
+
+    id = Column(BigInteger, primary_key=True, index=True)
+    title = Column(String(200), nullable=False)
+    description = Column(Text, nullable=False)
+    required_skills = Column(Text, nullable=False)
+
+    opportunity_type = Column(String(100), nullable=False)
+    location = Column(String(100), nullable=False)
+
+    source_type = Column(String(50), default="internal", nullable=False)
+    source_url = Column(String(200), nullable=True)
+
+    employer_id = Column(BigInteger, ForeignKey("employers.id", ondelete="CASCADE"), nullable=False)
+
+    employer = relationship("Employer", back_populates="job_postings")
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+

@@ -1,9 +1,14 @@
 import { useState, useEffect } from "react";
-import { getStudentDashboard, uploadStudentCV } from "../services/api"; // Ensure uploadStudentCV is exported from api.js
-import {useNavigate} from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { getStudentDashboard, uploadStudentCV } from "../services/api";
 import "../styles/global.css";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
 export default function StudentPage() {
+  const navigate = useNavigate();
+
+  // Profile Form State
   const [formData, setFormData] = useState({
     fullName: "",
     phone: "",
@@ -22,23 +27,40 @@ export default function StudentPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  const navigate = useNavigate();
+  // AI Matches State
+  const [matches, setMatches] = useState([]);
+  const [loadingMatches, setLoadingMatches] = useState(false);
+
+  // Load Dashboard and Fetch AI Matches on Mount
   useEffect(() => {
-    async function loadDashboard() {
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+
+    async function loadDashboardAndMatches() {
       try {
+        // Load initial dashboard profile data
         const data = await getStudentDashboard();
         console.log("Protected student data:", data);
-        // If data contains an existing profile, you can populate setFormData here
+
+        // Fetch AI recommended job matches
+        setLoadingMatches(true);
+        const res = await fetch(`${API_BASE_URL}/api/v1/student/matches`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const matchData = await res.json();
+        if (res.ok) setMatches(matchData.matches || []);
       } catch (err) {
         setError("Failed to load dashboard data. Please log in again.");
         navigate("/login");
+      } finally {
+        setLoadingMatches(false);
       }
     }
-    if(!localStorage.getItem("access_token")) {
-      navigate("/login");
-    } else {
-      loadDashboard();
-    }
+
+    loadDashboardAndMatches();
   }, [navigate]);
 
   const handleChange = (e) => {
@@ -73,10 +95,17 @@ export default function StudentPage() {
     payload.append("cvFile", cvFile);
 
     try {
-      // Pass the FormData payload to your API service
       const response = await uploadStudentCV(payload);
-      setSuccess("Profile and CV submitted successfully! We are analyzing your skills.");
+      setSuccess("Profile and CV submitted successfully! Analyzing your skills...");
       console.log("Saved successfully:", response);
+
+      // Refresh matches after saving new profile data
+      const token = localStorage.getItem("access_token");
+      const res = await fetch(`${API_BASE_URL}/api/v1/student/matches`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const matchData = await res.json();
+      if (res.ok) setMatches(matchData.matches || []);
     } catch (err) {
       setError(err.message || "Failed to submit profile.");
     } finally {
@@ -91,6 +120,7 @@ export default function StudentPage() {
         <p className="student-subtitle">Complete your profile and upload your CV to get matched with employers.</p>
       </header>
 
+      {/* SECTION 1: PROFILE FORM */}
       <div className="student-card">
         {error && <div className="login-error">{error}</div>}
         {success && <div className="success-message">{success}</div>}
@@ -171,6 +201,39 @@ export default function StudentPage() {
             </button>
           </div>
         </form>
+      </div>
+
+      <div className="student-card" style={{ marginTop: "2rem" }}>
+        <h2>AI Recommended Opportunities</h2>
+        {loadingMatches ? (
+          <p>Analyzing your profile and matching with live jobs...</p>
+        ) : matches.length === 0 ? (
+          <p>No job matches found yet. Complete your profile above to generate recommendations!</p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "1rem", marginTop: "1rem" }}>
+            {matches.map((job) => (
+              <div key={job.id} style={{ border: "1px solid #e2e8f0", padding: "1.2rem", borderRadius: "10px", background: "#f8fafc" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <h3 style={{ margin: 0, color: "#0d2b55" }}>{job.title}</h3>
+                  <span style={{ background: "#0E7C7B", color: "#fff", padding: "0.25rem 0.75rem", borderRadius: "12px", fontSize: "0.85rem", fontWeight: "bold" }}>
+                    {job.match_score}% Match
+                  </span>
+                </div>
+                <p style={{ margin: "0.5rem 0", color: "#64748b", fontSize: "0.9rem" }}>Location: {job.location}</p>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "1rem" }}>
+                  <span style={{ fontSize: "0.8rem", padding: "0.2rem 0.5rem", borderRadius: "4px", background: job.source_type === "internal" ? "#FEF3C7" : "#E2E8F0", color: job.source_type === "internal" ? "#92400E" : "#475569" }}>
+                    {job.source_type === "internal" ? "★ Verified Partner" : "Web Opportunity"}
+                  </span>
+                  {job.source_url ? (
+                    <a href={job.source_url} target="_blank" rel="noreferrer" className="btn-primary" style={{ padding: "0.4rem 0.8rem", fontSize: "0.85rem" }}>Apply on Web</a>
+                  ) : (
+                    <button className="btn-primary" style={{ padding: "0.4rem 0.8rem", fontSize: "0.85rem" }}>Apply Directly</button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
