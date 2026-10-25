@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import NavBar from "./frontend/components/NavBar";
 import HomePage from "./frontend/pages/HomePage";
 import StudentPage from "./frontend/pages/StudentPage";
+import AdminPage from "./frontend/pages/AdminPage";
 import EmployerPage from "./frontend/pages/EmployerPage";
 import LoginPage from "./frontend/pages/LoginPage";
 import RegistrationPage from "./frontend/pages/Registration/RegistrationPage";
@@ -22,6 +23,7 @@ export default function App() {
             <Route path="/employer" element={<EmployerPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<RegistrationPage />} />
+            <Route path="/admin" element={<AdminPage />} />
           </Routes>
         </main>
       </div>

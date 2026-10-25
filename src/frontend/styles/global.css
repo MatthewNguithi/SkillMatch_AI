@@ -309,3 +309,219 @@ small {
 @media (max-width: 600px) {
   .feature-grid, .audience-grid { grid-template-columns: 1fr; }
 }
+
+/* =========================================
+   REGISTRATION & TAB TOGGLE STYLES
+========================================= */
+.registration-card {
+  max-width: 500px;
+}
+
+.tab-toggle-container {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 1.5rem;
+  background: #f1f5f9;
+  padding: 5px;
+  border-radius: 8px;
+}
+
+.tab-toggle-btn {
+  flex: 1;
+  padding: 8px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  background: transparent;
+  color: #64748b;
+  box-shadow: none;
+  transition: all 0.2s ease;
+}
+
+.tab-toggle-btn.active-student {
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  color: #0E7C7B;
+}
+
+.tab-toggle-btn.active-employer {
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  color: #0d2b55;
+}
+
+.form-grid-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.login-button.employer-theme {
+  background: #0d2b55;
+}
+
+.login-button.employer-theme:hover {
+  background: #091e3d;
+}
+
+/* =========================================
+   OTP MODAL OVERLAY STYLES
+========================================= */
+.otp-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.otp-modal-content {
+  background: #ffffff;
+  padding: 2rem;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+.otp-modal-title {
+  margin: 0 0 0.5rem 0;
+  color: #0d2b55;
+}
+
+.otp-modal-subtitle {
+  font-size: 0.9rem;
+  color: #64748b;
+  margin-bottom: 1.5rem;
+}
+
+.otp-input {
+  font-size: 1.5rem;
+  letter-spacing: 0.5rem;
+  text-align: center;
+  padding: 0.75rem;
+}
+
+.otp-submit-btn {
+  margin-top: 1rem;
+}
+
+/* =========================================
+   MATCH CARD STYLES
+========================================= */
+.match-card {
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e5e5e5;
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.match-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.match-card-rank {
+  font-size: 0.72rem;
+  color: #888;
+  margin-bottom: 2px;
+}
+
+.match-card-title {
+  margin: 0 0 0.15rem;
+  color: #0D2B55;
+}
+
+.match-card-subtitle {
+  color: #555;
+  font-size: 0.88rem;
+}
+
+.match-card-score-container {
+  text-align: center;
+}
+
+.match-card-score {
+  color: #fff;
+  border-radius: 8px;
+  padding: 0.35rem 0.7rem;
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.match-card-score.employer-theme-score {
+  background: #0D2B55;
+}
+
+.match-card-label {
+  font-size: 0.7rem;
+  margin-top: 2px;
+  font-weight: 500;
+}
+
+.match-card-bars {
+  margin: 1rem 0;
+}
+
+.match-card-skills-section {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #cbd5e1;
+}
+
+.skill-section-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  margin-bottom: 3px;
+}
+
+.skill-section-title.success {
+  color: #085041;
+}
+
+.skill-section-title.danger {
+  color: #712B13;
+}
+
+.skills-text-block {
+  margin: 0.25rem 0 0 0;
+  font-size: 0.85rem;
+  color: #64748b;
+  white-space: pre-wrap;
+}
+
+.match-card-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.match-card-primary-btn {
+  background: #0D2B55;
+  color: #fff;
+  border: none;
+  padding: 0.45rem 1.2rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.match-card-primary-btn-alt {
+  background: #0E7C7B;
+  color: #fff;
+  border: none;
+  padding: 0.45rem 1.1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
