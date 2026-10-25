@@ -2,119 +2,84 @@ import { ScoreBar, SkillPill, SecondaryButton } from "./UI";
 
 // Used on the Student results page — one card per matched opportunity
 export function OpportunityCard({ result, rank }) {
-  const pct = Math.round(result.final_score * 100);
-  const labelColor = {
-    "match":         "#0E7C7B",
-    "partial match": "#E8A838",
-    "no match":      "#C0392B",
-  }[result.match_label] || "#888";
+  // Gracefully handle the single match_score from the backend payload
+  const pct = Math.round(result.match_score || 0);
+  
+  // Basic logic to determine match label color based on score
+  let labelColor = "#C0392B"; // No match default
+  let matchLabel = "no match";
+  if (pct >= 80) {
+    labelColor = "#0E7C7B";
+    matchLabel = "match";
+  } else if (pct >= 50) {
+    labelColor = "#E8A838";
+    matchLabel = "partial match";
+  }
 
   return (
-    <div style={{
-      background: "#fff", borderRadius: "12px",
-      border: "1px solid #e5e5e5", padding: "1.25rem", marginBottom: "1rem"
-    }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+    <div className="match-card">
+      <div className="match-card-header">
         <div>
-          <div style={{ fontSize: "0.72rem", color: "#888", marginBottom: "2px" }}>Rank {rank}</div>
-          <h3 style={{ margin: "0 0 0.15rem", color: "#0D2B55" }}>{result.job_title}</h3>
-          <div style={{ color: "#555", fontSize: "0.88rem" }}>
-            {result.company} · {result.job_county}
+          <div className="match-card-rank">Rank {rank}</div>
+          <h3 className="match-card-title">{result.title || result.job_title}</h3>
+          <div className="match-card-subtitle">
+            {result.location || result.county}
           </div>
         </div>
-        <div style={{ textAlign: "center" }}>
-          <div style={{
-            background: labelColor, color: "#fff", borderRadius: "8px",
-            padding: "0.35rem 0.7rem", fontWeight: 700, fontSize: "1.05rem"
-          }}>{pct}%</div>
-          <div style={{ fontSize: "0.7rem", color: labelColor, marginTop: "2px", fontWeight: 500 }}>
-            {result.match_label}
+        <div className="match-card-score-container">
+          <div className="match-card-score" style={{ background: labelColor }}>
+            {pct}%
+          </div>
+          <div className="match-card-label" style={{ color: labelColor }}>
+            {matchLabel}
           </div>
         </div>
       </div>
 
-      <div style={{ margin: "1rem 0" }}>
-        <ScoreBar score={result.semantic_score} label="Semantic match (SBERT)" />
-        <ScoreBar score={result.skill_score}    label="Exact skill overlap" />
+      <div className="match-card-bars">
+        <ScoreBar score={pct / 100} label="Semantic match (SBERT)" />
       </div>
 
-      {result.matched_skills.length > 0 && (
-        <div style={{ marginBottom: "0.5rem" }}>
-          <div style={{ fontSize: "0.78rem", fontWeight: 600, color: "#085041", marginBottom: "3px" }}>
-            Matching skills
-          </div>
-          {result.matched_skills.map(s => <SkillPill key={s} text={s} type="match" />)}
-        </div>
-      )}
-
-      {result.missing_skills.length > 0 && (
-        <div style={{ marginBottom: "1rem" }}>
-          <div style={{ fontSize: "0.78rem", fontWeight: 600, color: "#712B13", marginBottom: "3px" }}>
-            Skills to develop
-          </div>
-          {result.missing_skills.map(s => <SkillPill key={s} text={s} type="missing" />)}
-        </div>
-      )}
-
-      <button style={{
-        background: "#0D2B55", color: "#fff", border: "none",
-        padding: "0.45rem 1.2rem", borderRadius: "6px",
-        cursor: "pointer", fontSize: "0.85rem"
-      }}>Apply now</button>
+      <button className="match-card-primary-btn">Apply now</button>
     </div>
   );
 }
 
 // Used on the Employer results page — one card per candidate
 export function CandidateCard({ candidate, rank }) {
-  const pct = Math.round(candidate.final_score * 100);
+  // Use candidate.match_score directly from the API payload
+  const pct = Math.round(candidate.match_score || 0);
 
   return (
-    <div style={{
-      background: "#fff", borderRadius: "12px",
-      border: "1px solid #e5e5e5", padding: "1.25rem", marginBottom: "1rem"
-    }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+    <div className="match-card">
+      <div className="match-card-header">
         <div>
-          <div style={{ fontSize: "0.72rem", color: "#888", marginBottom: "2px" }}>Candidate #{rank}</div>
-          <h3 style={{ margin: "0 0 0.15rem", color: "#0D2B55" }}>{candidate.name}</h3>
-          <div style={{ color: "#555", fontSize: "0.88rem" }}>{candidate.county}</div>
-        </div>
-        <div style={{
-          background: "#0D2B55", color: "#fff", borderRadius: "8px",
-          padding: "0.35rem 0.7rem", fontWeight: 700, fontSize: "1.05rem"
-        }}>{pct}% fit</div>
-      </div>
-
-      <div style={{ margin: "1rem 0" }}>
-        <ScoreBar score={candidate.semantic_score} label="Semantic role alignment (SBERT)" />
-        <ScoreBar score={candidate.skill_score}    label="Exact skill match" />
-      </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
-        <div>
-          <div style={{ fontSize: "0.78rem", fontWeight: 600, color: "#085041", marginBottom: "3px" }}>
-            Has these skills
+          <div className="match-card-rank">Candidate #{rank}</div>
+          <h3 className="match-card-title">{candidate.full_name}</h3>
+          <div className="match-card-subtitle">
+            {candidate.course} • {candidate.institution}
           </div>
-          {candidate.matched_skills.length > 0
-            ? candidate.matched_skills.map(s => <SkillPill key={s} text={s} type="match" />)
-            : <span style={{ fontSize: "0.78rem", color: "#aaa" }}>none detected</span>}
         </div>
-        <div>
-          <div style={{ fontSize: "0.78rem", fontWeight: 600, color: "#712B13", marginBottom: "3px" }}>
-            Would need training in
+        <div className="match-card-score-container">
+          <div className="match-card-score employer-theme-score">
+            {pct}% fit
           </div>
-          {candidate.missing_skills.length > 0
-            ? candidate.missing_skills.map(s => <SkillPill key={s} text={s} type="missing" />)
-            : <span style={{ fontSize: "0.78rem", color: "#0E7C7B", fontWeight: 500 }}>Full skill match</span>}
         </div>
       </div>
 
-      <div style={{ display: "flex", gap: "0.75rem" }}>
-        <button style={{
-          background: "#0E7C7B", color: "#fff", border: "none",
-          padding: "0.45rem 1.1rem", borderRadius: "6px", cursor: "pointer", fontSize: "0.85rem"
-        }}>Invite to interview</button>
+      <div className="match-card-bars">
+        <ScoreBar score={pct / 100} label="Semantic role alignment (SBERT)" />
+      </div>
+
+      <div className="match-card-skills-section">
+        <div>
+          <div className="skill-section-title success">Top Skills</div>
+          <p className="skills-text-block">{candidate.skills || "None detected"}</p>
+        </div>
+      </div>
+
+      <div className="match-card-actions">
+        <button className="match-card-primary-btn-alt">Invite to interview</button>
         <SecondaryButton>View full profile</SecondaryButton>
       </div>
     </div>

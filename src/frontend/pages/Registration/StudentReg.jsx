@@ -1,10 +1,8 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
-export default function StudentReg() {
-  const navigate = useNavigate();
+export default function StudentReg({ onSuccess }) {
   const [form, setForm] = useState({
     first_name: "",
     last_name: "",
@@ -29,7 +27,6 @@ export default function StudentReg() {
       const response = await fetch(`${API_BASE_URL}/api/v1/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // Inject the role securely here
         body: JSON.stringify({ ...form, role: "student" }),
       });
 
@@ -40,9 +37,11 @@ export default function StudentReg() {
       }
 
       setSuccess("Success! Check your email for the OTP.");
-      // Optional: Automatically route to an OTP verification page
-      // setTimeout(() => navigate("/verify-otp"), 2000);
       
+      // FIXED: Corrected reference from formData.email to form.email and triggered parent pop-up
+      if (onSuccess) {
+        onSuccess(form.email);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -55,7 +54,7 @@ export default function StudentReg() {
       {error && <div className="login-error">{error}</div>}
       {success && <div className="success-message">{success}</div>}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+      <div className="form-grid-2col">
         <div className="form-group">
           <label>First Name</label>
           <input type="text" name="first_name" value={form.first_name} onChange={handleChange} required className="form-input" />

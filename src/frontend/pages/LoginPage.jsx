@@ -7,8 +7,6 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 export default function LoginPage() {
   const navigate = useNavigate();
 
-  // New state to track which tab is active
-  const [loginType, setLoginType] = useState("student"); 
   const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -40,19 +38,20 @@ export default function LoginPage() {
         throw new Error(data.detail || "Authentication failed.");
       }
 
-      // STRICT ROLE CHECK: Ensure they are logging into the correct portal
-      if (data.role !== loginType && data.role !== "admin") {
-        throw new Error(`You are registered as a ${data.role}, but tried to log in as an ${loginType}.`);
-      }
-
+      // Store auth session details
       localStorage.setItem("access_token", data.access_token);
       localStorage.setItem("skillmatch_role", data.role);
       localStorage.setItem("skillmatch_user_id", data.user_id);
 
+      // Automatic Role-Based Routing
       if (data.role === "employer") {
         navigate("/employer");
-      } else {
+      } else if (data.role === "student") {
         navigate("/student");
+      } else if (data.role === "admin") {
+        navigate("/admin");
+      } else {
+        setError("Unrecognized account role.");
       }
     } catch (err) {
       setError(err.message);
@@ -65,26 +64,8 @@ export default function LoginPage() {
     <section className="login-page">
       <div className="login-card">
         <div className="login-header">
-          <h1>{loginType === "student" ? "Student Login" : "Employer Login"}</h1>
-          <p>Sign in to your {loginType} account.</p>
-        </div>
-
-        {/* TAB TOGGLE UI */}
-        <div style={{ display: "flex", gap: "10px", marginBottom: "1.5rem", background: "#f1f5f9", padding: "5px", borderRadius: "8px" }}>
-          <button 
-            type="button"
-            onClick={() => { setLoginType("student"); setError(""); }}
-            style={{ flex: 1, padding: "8px", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "bold", background: loginType === "student" ? "#fff" : "transparent", boxShadow: loginType === "student" ? "0 1px 3px rgba(0,0,0,0.1)" : "none", color: loginType === "student" ? "#0E7C7B" : "#64748b" }}
-          >
-            Student
-          </button>
-          <button 
-            type="button"
-            onClick={() => { setLoginType("employer"); setError(""); }}
-            style={{ flex: 1, padding: "8px", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "bold", background: loginType === "employer" ? "#fff" : "transparent", boxShadow: loginType === "employer" ? "0 1px 3px rgba(0,0,0,0.1)" : "none", color: loginType === "employer" ? "#0d2b55" : "#64748b" }}
-          >
-            Employer
-          </button>
+          <h1>Welcome Back</h1>
+          <p>Sign in to access your SkillMatch account.</p>
         </div>
 
         {error && <div className="login-error">{error}</div>}
@@ -123,7 +104,9 @@ export default function LoginPage() {
               <input type="checkbox" />
               <span>Remember me</span>
             </label>
-            <Link to="/reset-password" className="forgot-link">Forgot password?</Link>
+            <Link to="/reset-password" className="forgot-link">
+              Forgot password?
+            </Link>
           </div>
 
           <button type="submit" className="login-button" disabled={loading}>
@@ -133,7 +116,9 @@ export default function LoginPage() {
 
         <p className="register-text">
           Don't have an account?{" "}
-          <Link to="/signup" className="register-link">Create one here</Link>
+          <Link to="/signup" className="register-link">
+            Create one here
+          </Link>
         </p>
       </div>
     </section>

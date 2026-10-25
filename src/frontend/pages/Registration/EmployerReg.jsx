@@ -1,10 +1,8 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
-export default function EmployerReg() {
-  const navigate = useNavigate();
+export default function EmployerReg({ onSuccess }) {
   const [form, setForm] = useState({
     first_name: "",
     last_name: "",
@@ -29,7 +27,6 @@ export default function EmployerReg() {
       const response = await fetch(`${API_BASE_URL}/api/v1/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // Inject the role securely here
         body: JSON.stringify({ ...form, role: "employer" }),
       });
 
@@ -40,7 +37,11 @@ export default function EmployerReg() {
       }
 
       setSuccess("Success! Check your email for the OTP. Your account will require admin approval.");
-      
+
+      // FIXED: Added trigger to display parent OTP pop-up on successful registration
+      if (onSuccess) {
+        onSuccess(form.email);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -53,13 +54,13 @@ export default function EmployerReg() {
       {error && <div className="login-error">{error}</div>}
       {success && <div className="success-message">{success}</div>}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+      <div className="form-grid-2col">
         <div className="form-group">
-          <label>First Name</label>
+          <label>Company Name</label>
           <input type="text" name="first_name" value={form.first_name} onChange={handleChange} required className="form-input" />
         </div>
         <div className="form-group">
-          <label>Last Name</label>
+          <label>Alternative Name</label>
           <input type="text" name="last_name" value={form.last_name} onChange={handleChange} required className="form-input" />
         </div>
       </div>
@@ -79,7 +80,7 @@ export default function EmployerReg() {
         <input type="password" name="password" value={form.password} onChange={handleChange} required className="form-input" />
       </div>
 
-      <button type="submit" className="login-button" style={{ background: "#0d2b55" }} disabled={loading}>
+      <button type="submit" className="login-button employer-theme" disabled={loading}>
         {loading ? "Creating Account..." : "Register as Employer"}
       </button>
     </form>

@@ -4,6 +4,7 @@ from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 
+from pydantic import BaseModel
 from database import get_db
 from model import Student, JobPosting, User
 from dependencies import get_current_user, require_roles
@@ -13,6 +14,15 @@ router = APIRouter()
 # Load the SBERT model once into memory when the server starts
 # 'all-MiniLM-L6-v2' is lightweight and extremely fast for semantic search
 sbert_model = SentenceTransformer('all-MiniLM-L6-v2')
+
+# Schema to accept the JSON payload from React
+class EmployerMatchRequest(BaseModel):
+    company: str
+    job_title: str
+    description: str
+    required_skills: str
+    county: str
+    experience_level: str
 
 @router.get("/student/matches")
 def get_job_matches(
@@ -71,3 +81,42 @@ def get_job_matches(
     job_results.sort(key=lambda x: x["match_score"], reverse=True)
     
     return {"matches": job_results[:limit]}
+
+@router.post("/employer/match")
+def match_candidates_for_employer(
+    request: EmployerMatchRequest,
+    limit: int = 10,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(["employer", "admin"]))
+):
+    # 1. Generate an embedding for the employer's job requirements
+    job_text = f"{request.job_title}. {request.description}. Required Skills: {request.required_skills}"
+    job_vector = np.array(sbert_model.encode(job_text).tolist()).reshape(1, -1)
+
+    # 2. Retrieve all students who have uploaded a CV (have embeddings)
+    students = db.query(Student).filter(Student.embedding != None).all()
+    
+    if not students:
+        return {"results": []}
+
+    # 3. Calculate Cosine Similarity
+    candidate_results = []
+    for student in students:
+        student_vector = np.array(student.embedding).reshape(1, -1)
+        similarity_score = cosine_similarity(job_vector, student_vector)[0][0]
+        
+        match_percentage = round(float(similarity_score) * 100, 1)
+
+        candidate_results.append({
+            "id": student.id,
+            "full_name": student.full_name,
+            "institution": student.institution,
+            "course": student.course,
+            "skills": student.skills_text,
+            "match_score": match_percentage
+        })
+
+    # 4. Sort candidates by best match and return top results
+    candidate_results.sort(key=lambda x: x["match_score"], reverse=True)
+    
+    return {"results": candidate_results[:limit]}

@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom"; 
+import { useNavigate } from "react-router-dom";
 import { Card, PrimaryButton, Spinner, ErrorBanner } from "../components/UI";
 import { CandidateCard } from "../components/Matchcard";
+import { matchEmployerCandidates } from "../services/api";
 import "../styles/global.css";
 
 export default function EmployerPage() {
@@ -22,7 +23,7 @@ export default function EmployerPage() {
 
   useEffect(() => {
     const token = localStorage.getItem("access_token");
-    if(!token){
+    if (!token) {
       navigate("/login");
     }
   }, [navigate]);
@@ -39,13 +40,25 @@ export default function EmployerPage() {
     setResults([]);
 
     try {
-      const response = await matchEmployer(form);
+      // EXPLICITLY MAP camelCase state to snake_case payload
+      const payload = {
+        company: form.company,
+        job_title: form.jobTitle,
+        description: form.description,
+        required_skills: form.requiredSkills,
+        county: form.county,
+        experience_level: form.experienceLevel
+      };
+
+      // Pass the correctly formatted payload to your api.js function
+      const response = await matchEmployerCandidates(payload);
+
       const returnedResults = response.results || response.matches || response.candidates || [];
       setResults(returnedResults);
     } catch (err) {
       setError(err.message || "Unable to find matching candidates.");
       if (err.message.includes("401") || err.message.includes("Unauthorized")) {
-        navigate("/login")
+        navigate("/login");
       }
     } finally {
       setLoading(false);

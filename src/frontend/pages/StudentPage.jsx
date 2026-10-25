@@ -87,17 +87,24 @@ export default function StudentPage() {
       return;
     }
 
-    // Package text fields and the PDF file together
+    // Map React state to Python snake_case expectations
     const payload = new FormData();
-    Object.keys(formData).forEach((key) => {
-      payload.append(key, formData[key]);
-    });
-    payload.append("cvFile", cvFile);
+    payload.append("full_name", formData.fullName);
+    payload.append("phone", formData.phone);
+    payload.append("institution", formData.institution);
+    payload.append("course", formData.course);
+    payload.append("year_of_study", formData.yearOfStudy);
+    payload.append("career_goal", formData.careerGoal);
+    payload.append("opportunity_type", formData.opportunityType);
+    payload.append("county", formData.county);
+    payload.append("skills_text", formData.skillsText);
+    payload.append("bio", formData.bio || "");
+    payload.append("consent", formData.consent);
+    payload.append("file", cvFile); // The file key must match UploadFile = File(...)
 
     try {
       const response = await uploadStudentCV(payload);
       setSuccess("Profile and CV submitted successfully! Analyzing your skills...");
-      console.log("Saved successfully:", response);
 
       // Refresh matches after saving new profile data
       const token = localStorage.getItem("access_token");
