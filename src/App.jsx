@@ -6,6 +6,7 @@ import AdminPage from "./frontend/pages/AdminPage";
 import EmployerPage from "./frontend/pages/EmployerPage";
 import LoginPage from "./frontend/pages/LoginPage";
 import RegistrationPage from "./frontend/pages/Registration/RegistrationPage";
+import SavedMatchesPage from "./frontend/pages/SavedMatchesPages";
 import "./frontend/pages/Registration/RegistrationPage"
 import "./frontend/styles/global.css";
 
@@ -24,6 +25,7 @@ export default function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<RegistrationPage />} />
             <Route path="/admin" element={<AdminPage />} />
+            <Route path="/saved-matches" element={<SavedMatchesPage />} />
           </Routes>
         </main>
       </div>

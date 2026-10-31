@@ -30,14 +30,12 @@ def upload_student_cv(
     current_user: User = Depends(require_roles(["student", "informal_worker"])),
     db: Session = Depends(get_db)
 ):
-    # Validate PDF format
     if not file.filename.lower().endswith(".pdf"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, 
             detail="Only PDF files are allowed for CV uploads."
         )
 
-    # Save file locally (prepping for SBERT text extraction later)
     upload_dir = "uploads/cvs"
     os.makedirs(upload_dir, exist_ok=True)
     file_path = os.path.join(upload_dir, f"{current_user.id}_{file.filename}")
@@ -45,7 +43,6 @@ def upload_student_cv(
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    # Upsert Student Profile in the database
     profile = db.query(Student).filter(Student.user_id == current_user.id).first()
     if not profile:
         profile = Student(user_id=current_user.id)

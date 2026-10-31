@@ -203,9 +203,10 @@ export default function EmployerPage() {
           {!loading &&
             results.map((candidate, index) => (
               <CandidateCard
-                key={candidate.id || candidate.candidate_id || index}
+                key={candidate.id}
                 candidate={candidate}
                 rank={index + 1}
+                searchedJobTitle={form.jobTitle}
               />
             ))}
         </div>

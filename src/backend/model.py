@@ -1,5 +1,6 @@
-from sqlalchemy import Column, BigInteger, Integer, String, Boolean, DateTime, ForeignKey, Text, JSON
+from sqlalchemy import Column, BigInteger, Integer, String, Boolean, DateTime, ForeignKey, Text, JSON, Float
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 from datetime import datetime
 from database import Base
 
@@ -59,7 +60,6 @@ class Student(Base):
     bio = Column(Text, nullable=True)
     consent = Column(Boolean, default=False, nullable=False)
     
-    # NEW: Store the SBERT vector array
     embedding = Column(JSON, nullable=True)
 
     user = relationship("User", back_populates="student_profile")
@@ -97,3 +97,17 @@ class Admin(Base):
     otp_expires_at = Column(DateTime, nullable=True)
     
     last_login = Column(DateTime, nullable=True)
+
+class SavedMatch(Base):
+    __tablename__ = "saved_matches"
+    id = Column(BigInteger, primary_key=True, index=True)
+    student_id = Column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    employer_id = Column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
+    job_id = Column(BigInteger, ForeignKey("job_postings.id", ondelete="CASCADE"), nullable=True)
+    match_score = Column(Float, nullable=False)
+    saved_by_role = Column(String(50), nullable=False) 
+    
+    itv_invite = Column(Boolean, default=False, nullable=False)
+    job_title = Column(String(200), nullable=True)
+    
+    created_at = Column(DateTime, server_default=func.now())

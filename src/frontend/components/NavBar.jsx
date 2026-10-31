@@ -3,7 +3,6 @@ import { NavLink, useNavigate } from "react-router-dom";
 export default function NavBar() {
   const navigate = useNavigate();
 
-  // Fixed 'getItem' typo and matched the exact keys from your login script
   const token = localStorage.getItem("access_token"); 
   const role = localStorage.getItem("skillmatch_role");
 
@@ -37,6 +36,7 @@ export default function NavBar() {
       <NavLink to="/" style={linkStyle}>Home</NavLink>
       <NavLink to="/student" style={linkStyle}>Students</NavLink>
       <NavLink to="/employer" style={linkStyle}>Employers</NavLink>
+      <NavLink to="/saved-matches" style={linkStyle}>Matches</NavLink>
       <NavLink to="/login" style={linkStyle}>Login</NavLink>
       <NavLink to="/signup" style={linkStyle}>Sign Up</NavLink>
     </nav>
