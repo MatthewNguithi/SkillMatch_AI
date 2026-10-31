@@ -20,10 +20,12 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="SkillMatch API", version="1.0.0")
 
+origins = ["http://localhost:5173"]
+
 # Enable CORS for React frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -48,7 +50,7 @@ def register(user_data: UserRegister, db: Session = Depends(get_db)):
             detail="Email address is already registered."
         )
 
-    # Hash password & create user
+    
     hashed_pwd = get_password_hash(user_data.password)
 
     otp = str(random.randint(100000, 999999))
@@ -66,7 +68,6 @@ def register(user_data: UserRegister, db: Session = Depends(get_db)):
         is_verified=False,
         is_approved=auto_approve,
         otp_code=otp,
-        # FIXED: Changed from 'otp_expiration_at' to 'otp_expires_at'
         otp_expires_at=expiration
     )
     db.add(new_user)
@@ -179,9 +180,6 @@ def login(credentials: OAuth2PasswordRequestForm = Depends(), db: Session = Depe
 def get_me(current_user: User = Depends(get_current_user)):
     return current_user
 
-# -------------------------------------------------------------
-# INCLUDE MODULAR ROUTERS
-# -------------------------------------------------------------
 app.include_router(student.router, prefix="/api/v1")
 app.include_router(employer.router, prefix="/api/v1")
 app.include_router(matching.router, prefix="/api/v1")

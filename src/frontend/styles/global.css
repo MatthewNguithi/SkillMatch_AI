@@ -2,6 +2,13 @@
   box-sizing: border-box;
 }
 
+#root {
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+}
+
 body {
   margin: 0;
   background: #f7f9fc;
@@ -46,13 +53,13 @@ small {
    SHARED LAYOUT & UTILITIES
 ========================================= */
 .page-container {
-  max-width: 1180px;
+  max-width: 100%;
   margin: 0 auto;
   padding: 2rem;
 }
 
 .page-container-narrow {
-  max-width: 1000px;
+  max-width: 100%;
   margin: 0 auto;
   padding: 40px 20px 80px;
   min-height: 100vh;
