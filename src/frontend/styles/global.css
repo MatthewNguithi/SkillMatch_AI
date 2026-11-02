@@ -590,3 +590,126 @@ small {
   color: #ffffff;
   font-size: 0.7rem;
 }
+
+/* =========================================
+   PROFILE QUALITY WIDGET STYLES
+========================================= */
+.quality-widget-card {
+  border-left-width: 5px;
+  border-left-style: solid;
+}
+
+.quality-widget-card.strength-strong {
+  border-left-color: #0E7C7B;
+}
+
+.quality-widget-card.strength-medium {
+  border-left-color: #E8A838;
+}
+
+.quality-widget-card.strength-low {
+  border-left-color: #C0392B;
+}
+
+.quality-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.8rem;
+}
+
+.quality-title {
+  margin: 0;
+  color: #0D2B55;
+}
+
+.quality-score-value.strength-strong {
+  color: #0E7C7B;
+}
+
+.quality-score-value.strength-medium {
+  color: #E8A838;
+}
+
+.quality-score-value.strength-low {
+  color: #C0392B;
+}
+
+.quality-score-circle {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.quality-score-circle.strength-strong {
+  background: rgba(14, 124, 123, 0.12);
+  color: #0E7C7B;
+}
+
+.quality-score-circle.strength-medium {
+  background: rgba(232, 168, 56, 0.12);
+  color: #E8A838;
+}
+
+.quality-score-circle.strength-low {
+  background: rgba(192, 57, 43, 0.12);
+  color: #C0392B;
+}
+
+.quality-skills-container {
+  margin-top: 1rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid #f1f5f9;
+}
+
+.quality-section-label {
+  font-size: 0.85rem;
+  color: #334155;
+}
+
+.quality-skills-list {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+.quality-skill-pill {
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+  padding: 0.25rem 0.6rem;
+  border-radius: 15px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: default;
+  transition: background 0.15s ease;
+}
+
+.quality-skill-pill.clickable {
+  cursor: pointer;
+}
+
+.quality-skill-pill.clickable:hover {
+  background: #dcfce7;
+}
+
+.quality-feedback-container {
+  margin-top: 0.8rem;
+}
+
+.quality-tips-list {
+  margin: 0.4rem 0 0 1.2rem;
+  padding: 0;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.quality-tip-item {
+  margin-bottom: 0.25rem;
+}
