@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getStudentDashboard, uploadStudentCV } from "../services/api";
+import ProfileQualityWidget from "../components/ProfileQualityWidget";
 import "../styles/global.css";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
@@ -8,7 +9,6 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 export default function StudentPage() {
   const navigate = useNavigate();
 
-  // Profile Form State
   const [formData, setFormData] = useState({
     fullName: "",
     phone: "",
@@ -22,16 +22,18 @@ export default function StudentPage() {
     bio: "",
     consent: false,
   });
+
   const [cvFile, setCvFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  // AI Matches State
+  // AI Matches & Preview Analysis State
   const [matches, setMatches] = useState([]);
   const [loadingMatches, setLoadingMatches] = useState(false);
+  const [qualityPreview, setQualityPreview] = useState(null);
+  const [analyzingPreview, setAnalyzingPreview] = useState(false);
 
-  // Load Dashboard and Fetch AI Matches on Mount
   useEffect(() => {
     const token = localStorage.getItem("access_token");
     if (!token) {
@@ -41,11 +43,7 @@ export default function StudentPage() {
 
     async function loadDashboardAndMatches() {
       try {
-        // Load initial dashboard profile data
         const data = await getStudentDashboard();
-        console.log("Protected student data:", data);
-
-        // Fetch AI recommended job matches
         setLoadingMatches(true);
         const res = await fetch(`${API_BASE_URL}/api/v1/student/matches`, {
           headers: { Authorization: `Bearer ${token}` },
@@ -75,6 +73,53 @@ export default function StudentPage() {
     setCvFile(e.target.files[0]);
   };
 
+  // Evaluate uncommitted form data without saving to DB
+  const handleCheckSuggestions = async () => {
+    setAnalyzingPreview(true);
+    setError("");
+    try {
+      const token = localStorage.getItem("access_token");
+      const res = await fetch(`${API_BASE_URL}/api/v1/student/profile-quality/preview`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          career_goal: formData.careerGoal,
+          skills_text: formData.skillsText,
+          bio: formData.bio,
+          course: formData.course,
+          opportunity_type: formData.opportunityType,
+          institution: formData.institution,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setQualityPreview(data);
+      } else {
+        setError(data.detail || "Failed to analyze profile suggestions.");
+      }
+    } catch (err) {
+      setError("Error running profile analysis.");
+    } finally {
+      setAnalyzingPreview(false);
+    }
+  };
+
+  // Append clicked suggestion directly into form inputs
+  const handleAddSkillToForm = (skill) => {
+    setFormData((prev) => {
+      const currentSkills = prev.skillsText ? prev.skillsText.split(",").map((s) => s.trim()) : [];
+      if (!currentSkills.includes(skill)) {
+        const updated = [...currentSkills, skill].join(", ");
+        return { ...prev, skillsText: updated };
+      }
+      return prev;
+    });
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setLoading(true);
@@ -87,7 +132,6 @@ export default function StudentPage() {
       return;
     }
 
-    // Map React state to Python snake_case expectations
     const payload = new FormData();
     payload.append("full_name", formData.fullName);
     payload.append("phone", formData.phone);
@@ -100,13 +144,12 @@ export default function StudentPage() {
     payload.append("skills_text", formData.skillsText);
     payload.append("bio", formData.bio || "");
     payload.append("consent", formData.consent);
-    payload.append("file", cvFile); // The file key must match UploadFile = File(...)
+    payload.append("file", cvFile);
 
     try {
-      const response = await uploadStudentCV(payload);
+      await uploadStudentCV(payload);
       setSuccess("Profile and CV submitted successfully! Analyzing your skills...");
 
-      // Refresh matches after saving new profile data
       const token = localStorage.getItem("access_token");
       const res = await fetch(`${API_BASE_URL}/api/v1/student/matches`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -126,6 +169,14 @@ export default function StudentPage() {
         <h1 className="student-title">Student Dashboard</h1>
         <p className="student-subtitle">Complete your profile and upload your CV to get matched with employers.</p>
       </header>
+
+      {/* Render AI Quality Suggestions Widget if requested */}
+      {qualityPreview && (
+        <ProfileQualityWidget
+          qualityData={qualityPreview}
+          onAddSkill={handleAddSkillToForm}
+        />
+      )}
 
       {/* SECTION 1: PROFILE FORM */}
       <div className="student-card">
@@ -202,7 +253,16 @@ export default function StudentPage() {
             <span className="consent-label">I consent to having my CV processed by the SkillMatch AI model.</span>
           </div>
 
-          <div className="student-actions" style={{ marginTop: "1.5rem" }}>
+          <div className="student-actions" style={{ marginTop: "1.5rem", display: "flex", gap: "1rem", justifyContent: "flex-end" }}>
+            <button
+              type="button"
+              onClick={handleCheckSuggestions}
+              className="match-card-primary-btn-alt"
+              disabled={analyzingPreview}
+            >
+              {analyzingPreview ? "Analyzing Unsaved Inputs..." : "💡 Get AI Suggestions"}
+            </button>
+
             <button type="submit" className="student-submit-btn" disabled={loading}>
               {loading ? "Analyzing Profile..." : "Save & Match"}
             </button>
@@ -210,6 +270,7 @@ export default function StudentPage() {
         </form>
       </div>
 
+      {/* SECTION 2: AI MATCHES */}
       <div className="student-card" style={{ marginTop: "2rem" }}>
         <h2>AI Recommended Opportunities</h2>
         {loadingMatches ? (
