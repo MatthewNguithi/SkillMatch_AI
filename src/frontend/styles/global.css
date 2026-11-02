@@ -532,3 +532,61 @@ small {
   cursor: pointer;
   font-size: 0.85rem;
 }
+
+/* =========================================
+   NAVBAR STYLES
+========================================= */
+.navbar {
+  background: #0D2B55;
+  display: flex;
+  align-items: center;
+  padding: 0 2rem;
+  height: 56px;
+  gap: 0.5rem;
+}
+
+.navbar-brand {
+  margin-right: auto;
+  text-decoration: none;
+}
+
+.navbar-logo-text {
+  color: #0E7C7B;
+  font-weight: 700;
+  font-size: 1.2rem;
+}
+
+.navbar-logo-accent {
+  color: #E8A838;
+}
+
+.navbar-link {
+  color: #ffffff;
+  background: transparent;
+  padding: 0.35rem 1rem;
+  border-radius: 6px;
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 400;
+  transition: background 0.15s ease, color 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  position: relative;
+}
+
+.navbar-link:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.navbar-link.active {
+  color: #0E7C7B;
+  background: rgba(255, 255, 255, 0.12);
+  font-weight: 600;
+}
+
+.navbar-badge {
+  background: #C0392B;
+  color: #ffffff;
+  font-size: 0.7rem;
+}
