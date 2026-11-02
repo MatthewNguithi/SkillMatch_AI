@@ -1,7 +1,10 @@
 import { ScoreBar, SkillPill, SecondaryButton } from "./UI";
+import { useState } from "react";
+import { ChatModal } from "./ChatModal";
 
 // Used on the Student results page — one card per matched opportunity
 export function OpportunityCard({ result, rank }) {
+  const [showChat, setShowChat] = useState(false);
   const pct = Math.round(result.match_score || 0);
 
   let labelColor = "#C0392B";
@@ -17,54 +20,67 @@ export function OpportunityCard({ result, rank }) {
   const isInvited = result.itv_invite || result.invited_to_interview;
 
   return (
-    <div
-      className="match-card"
-      style={isInvited ? { borderColor: "#0E7C7B", borderWidth: "2px" } : {}}
-    >
-      {isInvited && (
-        <div style={{
-          background: "#e6f4f1",
-          color: "#0E7C7B",
-          display: "inline-block",
-          padding: "0.25rem 0.65rem",
-          borderRadius: "20px",
-          fontSize: "0.75rem",
-          fontWeight: "700",
-          marginBottom: "0.6rem"
-        }}>
-          🎉 Interview Invited!
+    <>
+      <div
+        className="match-card"
+        style={isInvited ? { borderColor: "#0E7C7B", borderWidth: "2px" } : {}}
+      >
+        {isInvited && (
+          <div style={{
+            background: "#e6f4f1",
+            color: "#0E7C7B",
+            display: "inline-block",
+            padding: "0.25rem 0.65rem",
+            borderRadius: "20px",
+            fontSize: "0.75rem",
+            fontWeight: "700",
+            marginBottom: "0.6rem"
+          }}>
+            🎉 Interview Invited!
+          </div>
+        )}
+
+        <div className="match-card-header">
+          <div>
+            <div className="match-card-rank">Rank {rank}</div>
+            <h3 className="match-card-title">{result.title || result.job_title}</h3>
+            <div className="match-card-subtitle">
+              {result.location || result.county || "Nairobi"}
+            </div>
+          </div>
+          <div className="match-card-score-container">
+            <div className="match-card-score" style={{ background: labelColor }}>
+              {pct}%
+            </div>
+            <div className="match-card-label" style={{ color: labelColor }}>
+              {matchLabel}
+            </div>
+          </div>
         </div>
+
+        <div className="match-card-bars">
+          <ScoreBar score={pct / 100} label="Semantic match (SBERT)" />
+        </div>
+
+        <button className="match-card-primary-btn">
+          {isInvited ? "Accept & Respond" : "Apply now"}
+        </button>
+      </div>
+
+      {showChat && (
+        <ChatModal
+          recipientId={result.employer_id}
+          recipientName={result.title || "Employer Partner"}
+          jobTitle={result.title || result.job_title}
+          onClose={() => setShowChat(false)}
+        />
       )}
-
-      <div className="match-card-header">
-        <div>
-          <div className="match-card-rank">Rank {rank}</div>
-          <h3 className="match-card-title">{result.title || result.job_title}</h3>
-          <div className="match-card-subtitle">
-            {result.location || result.county || "Nairobi"}
-          </div>
-        </div>
-        <div className="match-card-score-container">
-          <div className="match-card-score" style={{ background: labelColor }}>
-            {pct}%
-          </div>
-          <div className="match-card-label" style={{ color: labelColor }}>
-            {matchLabel}
-          </div>
-        </div>
-      </div>
-
-      <div className="match-card-bars">
-        <ScoreBar score={pct / 100} label="Semantic match (SBERT)" />
-      </div>
-
-      <button className="match-card-primary-btn">
-        {isInvited ? "Accept & Respond" : "Apply now"}
-      </button>
-    </div>
+    </>
   );
 }
 export function CandidateCard({ candidate, rank, searchedJobTitle }) {
+  const [showChat, setShowChat] = useState(false);
+  const [invited, setInvited] = useState(candidate.itv_invite || false);
   const pct = Math.round(candidate.match_score || 0);
 
   const inviteCandidate = async () => {
@@ -76,7 +92,7 @@ export function CandidateCard({ candidate, rank, searchedJobTitle }) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
+          Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({
           student_id: candidate.id,
@@ -84,12 +100,14 @@ export function CandidateCard({ candidate, rank, searchedJobTitle }) {
           job_title: searchedJobTitle || "General Application"
         })
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.detail || "Failed to send Interview Invitation");
 
-      alert("Candidate has successfully received Interview Invitation.");
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || "Failed to send invitation");
+
+      setInvited(true);
+      alert(`Interview invitation sent to ${candidate.full_name}!`);
     } catch (err) {
-      alert("error saving candidate:" + err.message)
+      alert("Error sending invitation: " + err.message);
     }
   };
 
@@ -121,39 +139,57 @@ export function CandidateCard({ candidate, rank, searchedJobTitle }) {
   };
 
   return (
-    <div className="match-card">
-      <div className="match-card-header">
-        <div>
-          <div className="match-card-rank">Candidate #{rank}</div>
-          <h3 className="match-card-title">{candidate.full_name}</h3>
-          <div className="match-card-subtitle">
-            {candidate.course} • {candidate.institution}
+    <>
+      <div className="match-card">
+        <div className="match-card-header">
+          <div>
+            <div className="match-card-rank">Candidate #{rank}</div>
+            <h3 className="match-card-title">{candidate.full_name}</h3>
+            <div className="match-card-subtitle">
+              {candidate.course} • {candidate.institution}
+            </div>
+          </div>
+          <div className="match-card-score-container">
+            <div className="match-card-score employer-theme-score">
+              {pct}% fit
+            </div>
           </div>
         </div>
-        <div className="match-card-score-container">
-          <div className="match-card-score employer-theme-score">
-            {pct}% fit
+
+        <div className="match-card-bars">
+          <ScoreBar score={pct / 100} label="Semantic role alignment (SBERT)" />
+        </div>
+
+        <div className="match-card-skills-section">
+          <div>
+            <div className="skill-section-title success">Top Skills</div>
+            <p className="skills-text-block">{candidate.skills || "None detected"}</p>
           </div>
         </div>
-      </div>
 
-      <div className="match-card-bars">
-        <ScoreBar score={pct / 100} label="Semantic role alignment (SBERT)" />
-      </div>
+        <div className="match-card-actions" style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+          <button onClick={inviteCandidate} className="match-card-primary-btn-alt">
+            {invited ? "Invitation Sent" : "Invite to interview"}
+          </button>
 
-      <div className="match-card-skills-section">
-        <div>
-          <div className="skill-section-title success">Top Skills</div>
-          <p className="skills-text-block">{candidate.skills || "None detected"}</p>
+          <button
+            onClick={() => setShowChat(true)}
+            className="match-card-primary-btn"
+            style={{ background: "#0D2B55" }}
+          >
+            💬 Message Candidate
+          </button>
         </div>
       </div>
 
-      <div className="match-card-actions">
-        <button onClick={inviteCandidate} className="match-card-primary-btn-alt">Invite to interview</button>
-        <button onClick={handleSave} className="match-card-primary-btn" style={{ background: "#64748b" }}>
-          Save Candidate
-        </button>
-      </div>
-    </div>
+      {showChat && (
+        <ChatModal
+          recipientId={candidate.id}
+          recipientName={candidate.full_name}
+          jobTitle={searchedJobTitle || "General Inquiry"}
+          onClose={() => setShowChat(false)}
+        />
+      )}
+    </>
   );
 }

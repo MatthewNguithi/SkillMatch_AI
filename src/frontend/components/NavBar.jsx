@@ -1,44 +1,96 @@
+import { useState, useEffect } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 
 export default function NavBar() {
   const navigate = useNavigate();
+  const [unreadCount, setUnreadCount] = useState(0);
 
-  const token = localStorage.getItem("access_token"); 
+  const token = localStorage.getItem("access_token");
   const role = localStorage.getItem("skillmatch_role");
+
+  const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+  useEffect(() => {
+    if (!token) return;
+
+    const fetchUnread = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/v1/messages/unread-count`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (res.ok) {
+          setUnreadCount(data.unread_count || 0);
+        }
+      } catch (err) {
+        console.error("Error fetching unread message count:", err);
+      }
+    };
+
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 10000); // Poll every 10s
+    return () => clearInterval(interval);
+  }, [token, API_BASE_URL]);
 
   const handleLogout = () => {
     localStorage.clear();
+    setUnreadCount(0);
     navigate("/login");
   };
 
-  const linkStyle = ({ isActive }) => ({
-    color: isActive ? "#0E7C7B" : "#fff",
-    background: isActive ? "rgba(255,255,255,0.12)" : "transparent",
-    padding: "0.35rem 1rem",
-    borderRadius: "6px",
-    textDecoration: "none",
-    fontSize: "0.9rem",
-    fontWeight: isActive ? 600 : 400,
-    transition: "background 0.15s",
-  });
+  const getLinkClass = ({ isActive }) =>
+    `navbar-link${isActive ? " active" : ""}`;
 
   return (
-    <nav style={{
-      background: "#0D2B55", display: "flex",
-      alignItems: "center", padding: "0 2rem", height: "56px", gap: "0.5rem"
-    }}>
-      <NavLink to="/" style={{ marginRight: "auto", textDecoration: "none" }}>
-        <span style={{ color: "#0E7C7B", fontWeight: 700, fontSize: "1.2rem" }}>
-          Skill<span style={{ color: "#E8A838" }}>Match</span>
+    <nav className="navbar">
+      <NavLink to="/" className="navbar-brand">
+        <span className="navbar-logo-text">
+          Skill<span className="navbar-logo-accent">Match</span>
         </span>
       </NavLink>
-      
-      <NavLink to="/" style={linkStyle}>Home</NavLink>
-      <NavLink to="/student" style={linkStyle}>Students</NavLink>
-      <NavLink to="/employer" style={linkStyle}>Employers</NavLink>
-      <NavLink to="/saved-matches" style={linkStyle}>Matches</NavLink>
-      <NavLink to="/login" style={linkStyle}>Login</NavLink>
-      <NavLink to="/signup" style={linkStyle}>Sign Up</NavLink>
+
+      <NavLink to="/" className={getLinkClass}>
+        Home
+      </NavLink>
+
+      {token ? (
+        <>
+          {role === "student" && (
+            <NavLink to="/student" className={getLinkClass}>
+              Find Jobs
+            </NavLink>
+          )}
+          {role === "employer" && (
+            <NavLink to="/employer" className={getLinkClass}>
+              Find Candidates
+            </NavLink>
+          )}
+          
+          <NavLink to="/saved-matches" className={getLinkClass}>
+            Matches
+          </NavLink>
+
+          <NavLink to="/inbox" className={getLinkClass}>
+            Messages
+            {unreadCount > 0 && (
+              <span className="navbar-badge">{unreadCount}</span>
+            )}
+          </NavLink>
+
+          <button onClick={handleLogout} className="navbar-logout-btn">
+            Logout
+          </button>
+        </>
+      ) : (
+        <>
+          <NavLink to="/login" className={getLinkClass}>
+            Login
+          </NavLink>
+          <NavLink to="/signup" className={getLinkClass}>
+            Sign Up
+          </NavLink>
+        </>
+      )}
     </nav>
   );
 }

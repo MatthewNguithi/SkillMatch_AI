@@ -1,14 +1,9 @@
-from database import engine
-from sqlalchemy import text
+from database import engine, Base
+import model  # Ensure model is imported so SQLAlchemy registers the Message schema
 
-def add_column():
-    with engine.connect() as conn:
-        try:
-            conn.execute(text("ALTER TABLE saved_matches ADD COLUMN itv_invite BOOLEAN DEFAULT FALSE;"))
-            conn.commit()
-            print("Successfully added 'itv_invite' column to 'saved_matches' table!")
-        except Exception as e:
-            print(f"Error updating table: {e}")
+def create_tables():
+    model.Base.metadata.create_all(bind=engine)
+    print("Successfully created 'messages' table!")
 
 if __name__ == "__main__":
-    add_column()
+    create_tables()

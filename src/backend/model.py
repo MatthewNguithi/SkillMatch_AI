@@ -111,3 +111,14 @@ class SavedMatch(Base):
     job_title = Column(String(200), nullable=True)
     
     created_at = Column(DateTime, server_default=func.now())
+
+class Message(Base):
+    __tablename__ = "messages"
+
+    id = Column(BigInteger, primary_key=True, index=True)
+    sender_id = Column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    receiver_id = Column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    job_title = Column(String(200), nullable=True)
+    content = Column(Text, nullable=False)
+    is_read = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
