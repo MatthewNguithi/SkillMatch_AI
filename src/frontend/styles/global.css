@@ -713,3 +713,80 @@ small {
 .quality-tip-item {
   margin-bottom: 0.25rem;
 }
+
+/* =========================================
+   SEMANTIC SEARCH BAR STYLES
+========================================= */
+.semantic-search-box {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.semantic-search-header {
+  margin-bottom: 0.85rem;
+}
+
+.semantic-search-subtitle {
+  margin: 0;
+  font-size: 0.88rem;
+  color: #64748b;
+}
+
+.semantic-search-form {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.semantic-search-input {
+  flex: 1;
+}
+
+.semantic-search-btn {
+  white-space: nowrap;
+  padding: 0.75rem 1.25rem;
+}
+
+.semantic-chips-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.85rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #f1f5f9;
+}
+
+.semantic-chips-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.semantic-chip-btn {
+  background: #f8fafc;
+  color: #0E7C7B;
+  border: 1px solid #cbd5e1;
+  padding: 0.25rem 0.65rem;
+  border-radius: 16px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.semantic-chip-btn:hover {
+  background: #e6f4f1;
+  border-color: #0E7C7B;
+}
+
+@media (max-width: 650px) {
+  .semantic-search-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

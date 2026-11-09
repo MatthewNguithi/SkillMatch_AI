@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getStudentDashboard, uploadStudentCV } from "../services/api";
 import ProfileQualityWidget from "../components/ProfileQualityWidget";
+import SemanticSearchBar from "../components/SemanticSearchBar";
 import "../styles/global.css";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
@@ -33,6 +34,19 @@ export default function StudentPage() {
   const [loadingMatches, setLoadingMatches] = useState(false);
   const [qualityPreview, setQualityPreview] = useState(null);
   const [analyzingPreview, setAnalyzingPreview] = useState(false);
+
+  const [searchResults, setSearchResults] = useState(null);
+  const [searchQueryText, setSearchQueryText] = useState("");
+
+  const handleSearchResults = (results, queryText) => {
+    setSearchResults(results);
+    setSearchQueryText(queryText);
+  };
+
+  const handleClearSearch = () => {
+    setSearchResults(null);
+    setSearchQueryText("");
+  };
 
   useEffect(() => {
     const token = localStorage.getItem("access_token");
@@ -177,6 +191,47 @@ export default function StudentPage() {
           onAddSkill={handleAddSkillToForm}
         />
       )}
+
+      <div className="student-card" style={{ marginTop: "2rem" }}>
+        <SemanticSearchBar
+          target="jobs"
+          onSearchResults={handleSearchResults}
+          onClear={handleClearSearch}
+          placeholder="e.g., Remote entry-level React developer with state management"
+          sampleQueries={[
+            "Remote entry-level React developer with state management",
+            "Legal intern with contract drafting experience",
+            "Part-time data analyst using SQL and Python"
+          ]}
+        />
+
+        <h2>
+          {searchResults !== null
+            ? `Semantic Search Results for "${searchQueryText}"`
+            : "AI Recommended Opportunities"}
+        </h2>
+
+        {/* Display either searchResults or default profile matches */}
+        {loadingMatches ? (
+          <p>Analyzing profile and matching live jobs...</p>
+        ) : (searchResults !== null ? searchResults : matches).length === 0 ? (
+          <p>No matching opportunities found for this query.</p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "1rem", marginTop: "1rem" }}>
+            {(searchResults !== null ? searchResults : matches).map((job) => (
+              <div key={job.id} style={{ border: "1px solid #e2e8f0", padding: "1.2rem", borderRadius: "10px", background: "#f8fafc" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <h3 style={{ margin: 0, color: "#0d2b55" }}>{job.title}</h3>
+                  <span style={{ background: "#0E7C7B", color: "#fff", padding: "0.25rem 0.75rem", borderRadius: "12px", fontSize: "0.85rem", fontWeight: "bold" }}>
+                    {job.match_score}% Intent Fit
+                  </span>
+                </div>
+                <p style={{ margin: "0.5rem 0", color: "#64748b", fontSize: "0.9rem" }}>Location: {job.location}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* SECTION 1: PROFILE FORM */}
       <div className="student-card">
