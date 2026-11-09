@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 from sqlalchemy.orm import Session
+from fastapi import Query
 from collections import Counter
 import numpy as np
 
@@ -550,3 +551,72 @@ def preview_profile_quality(
         "missing_suggested_skills": missing_suggested_skills,
         "feedback_tips": feedback_tips,
     }
+
+@router.get("/search/semantic")
+def semantic_search(
+    q: str = Query(..., min_length=2, description="Natural language intent query"),
+    target: str = Query("jobs", description="Target collection: 'jobs' or 'candidates'"),
+    limit: int = 10,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(["student", "employer", "admin"]))
+):
+    if not q.strip():
+        return {"results": []}
+
+    # 1. Convert natural language query into SBERT vector embedding
+    query_vector = np.array(sbert_model.encode(q.strip())).reshape(1, -1)
+    results = []
+
+    # 2. Match intent against Job Postings (for Student Search)
+    if target == "jobs":
+        jobs = db.query(JobPosting).all()
+        for job in jobs:
+            if not job.embedding:
+                job_text = f"{job.title}. {job.description}. Required Skills: {job.required_skills or ''}"
+                job.embedding = sbert_model.encode(job_text).tolist()
+                db.commit()
+
+            job_vector = np.array(job.embedding).reshape(1, -1)
+            sim = float(cosine_similarity(query_vector, job_vector)[0][0])
+            match_percentage = round(sim * 100, 1)
+
+            # Similarity threshold cut-off
+            if match_percentage >= 35.0:
+                results.append({
+                    "id": job.id,
+                    "title": job.title,
+                    "location": job.location,
+                    "source_type": job.source_type,
+                    "source_url": job.source_url,
+                    "match_score": match_percentage,
+                    "employer_id": job.employer_id
+                })
+
+    # 3. Match intent against Student Candidates (for Employer Search)
+    elif target == "candidates":
+        students = db.query(Student).all()
+        for student in students:
+            if not student.embedding:
+                profile_text = f"{student.career_goal or ''}. Skills: {student.skills_text or ''}. Bio: {student.bio or ''}"
+                if profile_text.strip():
+                    student.embedding = sbert_model.encode(profile_text).tolist()
+                    db.commit()
+
+            if student.embedding:
+                student_vector = np.array(student.embedding).reshape(1, -1)
+                sim = float(cosine_similarity(query_vector, student_vector)[0][0])
+                match_percentage = round(sim * 100, 1)
+
+                if match_percentage >= 35.0:
+                    results.append({
+                        "id": student.user_id,
+                        "full_name": student.full_name,
+                        "institution": student.institution,
+                        "course": student.course,
+                        "skills": student.skills_text,
+                        "match_score": match_percentage
+                    })
+
+    # 4. Rank by highest vector proximity
+    results.sort(key=lambda x: x["match_score"], reverse=True)
+    return {"query": q, "target": target, "results": results[:limit]}
