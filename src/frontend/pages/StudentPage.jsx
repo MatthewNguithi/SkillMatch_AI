@@ -48,6 +48,58 @@ export default function StudentPage() {
     setSearchQueryText("");
   };
 
+  const [parsingCV, setParsingCV] = useState(false);
+  const [parsedMeta, setParsedMeta] = useState(null);
+
+  const handleFileChange = async (e) => {
+    const selectedFile = e.target.files[0];
+    if (!selectedFile) return;
+
+    setCvFile(selectedFile);
+    setParsingCV(true);
+    setError("");
+
+    // Trigger automated spaCy / PyMuPDF parsing API
+    const token = localStorage.getItem("access_token");
+    const parsePayload = new FormData();
+    parsePayload.append("file", selectedFile);
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/student/parse-cv`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: parsePayload,
+      });
+      const result = await res.json();
+
+      if (res.ok && result.data) {
+        const { extracted_skills, institution, phone } = result.data;
+        setParsedMeta(result.data);
+
+        // Autofill missing form fields dynamically
+        setFormData((prev) => {
+          const existingSkills = prev.skillsText
+            ? prev.skillsText.split(",").map((s) => s.trim()).filter(Boolean)
+            : [];
+          const combinedSkills = Array.from(
+            new Set([...existingSkills, ...extracted_skills])
+          ).join(", ");
+
+          return {
+            ...prev,
+            phone: prev.phone || phone || "",
+            institution: prev.institution || institution || "",
+            skillsText: combinedSkills || prev.skillsText,
+          };
+        });
+      }
+    } catch (err) {
+      console.error("CV Parsing Error:", err);
+    } finally {
+      setParsingCV(false);
+    }
+  };
+
   useEffect(() => {
     const token = localStorage.getItem("access_token");
     if (!token) {
@@ -324,6 +376,37 @@ export default function StudentPage() {
           </div>
         </form>
       </div>
+
+      <div className="form-group full-width">
+  <label>Upload CV (PDF or DOCX)</label>
+  <input
+    type="file"
+    accept=".pdf,.docx,.doc"
+    onChange={handleFileChange}
+    required
+    className="form-input"
+    style={{ padding: "0.5rem" }}
+  />
+  {parsingCV && <small style={{ color: "#0E7C7B" }}>⚡ Extracting skills & details using spaCy NER...</small>}
+</div>
+
+{parsedMeta && (
+  <div className="cv-parser-banner">
+    <div className="cv-parser-header">
+      <h4 className="cv-parser-title">✨ Automatically Extracted from {cvFile?.name}</h4>
+      <span className="cv-parsed-tag">{parsedMeta.extracted_skills?.length || 0} Skills Detected</span>
+    </div>
+    {parsedMeta.extracted_skills?.length > 0 && (
+      <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap", marginTop: "0.4rem" }}>
+        {parsedMeta.extracted_skills.map((skill, idx) => (
+          <span key={idx} className="quality-skill-pill">
+            ✓ {skill}
+          </span>
+        ))}
+      </div>
+    )}
+  </div>
+)}
 
       {/* SECTION 2: AI MATCHES */}
       <div className="student-card" style={{ marginTop: "2rem" }}>
