@@ -1,13 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 from sqlalchemy.orm import Session
 from fastapi import Query
 from collections import Counter
 import numpy as np
-
+import redis
+import json
+import hashlib
+import re
+from collections import Counter
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from database import get_db
 from model import Student, JobPosting, User, SavedMatch
 from dependencies import get_current_user, require_roles
@@ -15,6 +19,20 @@ from dependencies import get_current_user, require_roles
 router = APIRouter()
 
 sbert_model = SentenceTransformer("all-MiniLM-L6-v2")
+
+try:
+    redis_client = redis.Redis(
+        host="localhost",
+        port=6379,
+        db=0,
+        decode_responses=True,
+        socket_connect_timeout=2,
+    )
+    redis_client.ping()
+    REDIS_AVAILABLE = True
+except Exception:
+    REDIS_AVAILABLE = False
+    redis_client = None
 
 
 class ProfilePreviewRequest(BaseModel):
@@ -56,6 +74,34 @@ def extract_skill_tokens(text: str):
     return [t.strip() for t in raw_tokens if len(t.strip()) > 1]
 
 
+def get_cached_embedding(text: str) -> List[float]:
+    """Helper function to fetch or cache SBERT vector embeddings in Redis."""
+    if not text or not text.strip():
+        return []
+
+    clean_text = text.strip()
+    text_hash = hashlib.md5(clean_text.encode("utf-8")).hexdigest()
+    cache_key = f"sbert:emb:{text_hash}"
+
+    if REDIS_AVAILABLE and redis_client:
+        try:
+            cached_val = redis_client.get(cache_key)
+            if cached_val:
+                return json.loads(cached_val)
+        except Exception:
+            pass
+
+    embedding_vector = sbert_model.encode(clean_text).tolist()
+
+    if REDIS_AVAILABLE and redis_client:
+        try:
+            redis_client.set(cache_key, json.dumps(embedding_vector), ex=604800)
+        except Exception:
+            pass
+
+    return embedding_vector
+
+
 @router.get("/student/matches")
 def get_job_matches(
     limit: int = 10,
@@ -69,13 +115,14 @@ def get_job_matches(
             detail="Student profile not found. Please complete your profile first.",
         )
 
+    profile_text = f"{student.career_goal or ''}. Skills: {student.skills_text or ''}. Bio: {student.bio or ''}"
+
+    # Retrieve student vector from Redis or DB/Model
     if not student.embedding:
-        profile_text = f"{student.career_goal}. Skills: {student.skills_text}. Bio: {student.bio or ''}"
-        student.embedding = sbert_model.encode(profile_text).tolist()
+        student.embedding = get_cached_embedding(profile_text)
         db.commit()
 
     student_vector = np.array(student.embedding).reshape(1, -1)
-
     jobs = (
         db.query(JobPosting)
         .filter(JobPosting.opportunity_type == student.opportunity_type)
@@ -87,9 +134,11 @@ def get_job_matches(
 
     job_results = []
     for job in jobs:
+        job_text = f"{job.title}. {job.description}. Required Skills: {job.required_skills or ''}"
+
+        # Check Redis embedding cache for job vector
         if not job.embedding:
-            job_text = f"{job.title}. {job.description}. Required Skills: {job.required_skills or ''}"
-            job.embedding = sbert_model.encode(job_text).tolist()
+            job.embedding = get_cached_embedding(job_text)
             db.commit()
 
         job_vector = np.array(job.embedding).reshape(1, -1)
@@ -120,31 +169,37 @@ def match_candidates_for_employer(
     current_user: User = Depends(require_roles(["employer", "admin"])),
 ):
     job_text = f"{request.job_title}. {request.description}. Required Skills: {request.required_skills}"
-    job_vector = np.array(sbert_model.encode(job_text).tolist()).reshape(1, -1)
+    job_vector = np.array(get_cached_embedding(job_text)).reshape(1, -1)
 
-    students = db.query(Student).filter(Student.embedding != None).all()
+    students = db.query(Student).filter(Student.skills_text != None).all()
     if not students:
         return {"results": []}
 
     MIN_MATCH_SCORE = 45.0
-
     candidate_results = []
-    for student in students:
-        student_vector = np.array(student.embedding).reshape(1, -1)
-        similarity_score = cosine_similarity(job_vector, student_vector)[0][0]
-        match_percentage = round(float(similarity_score) * 100, 1)
 
-        if match_percentage >= MIN_MATCH_SCORE:
-            candidate_results.append(
-                {
-                    "id": student.user_id,
-                    "full_name": student.full_name,
-                    "institution": student.institution,
-                    "course": student.course,
-                    "skills": student.skills_text,
-                    "match_score": match_percentage,
-                }
-            )
+    for student in students:
+        profile_text = f"{student.career_goal or ''}. Skills: {student.skills_text or ''}. Bio: {student.bio or ''}"
+        if not student.embedding:
+            student.embedding = get_cached_embedding(profile_text)
+            db.commit()
+
+        if student.embedding:
+            student_vector = np.array(student.embedding).reshape(1, -1)
+            similarity_score = cosine_similarity(job_vector, student_vector)[0][0]
+            match_percentage = round(float(similarity_score) * 100, 1)
+
+            if match_percentage >= MIN_MATCH_SCORE:
+                candidate_results.append(
+                    {
+                        "id": student.user_id,
+                        "full_name": student.full_name,
+                        "institution": student.institution,
+                        "course": student.course,
+                        "skills": student.skills_text,
+                        "match_score": match_percentage,
+                    }
+                )
 
     candidate_results.sort(key=lambda x: x["match_score"], reverse=True)
     return {"results": candidate_results[:limit]}
@@ -456,7 +511,6 @@ def preview_profile_quality(
     feedback_tips = []
     missing_suggested_skills = []
 
-    # 1. Structural Checks on Unsaved Form Inputs
     student_skills = extract_skill_tokens(request.skills_text or "")
 
     if request.career_goal and len(request.career_goal.strip()) >= 15:
@@ -487,7 +541,6 @@ def preview_profile_quality(
     else:
         feedback_tips.append("Ensure institution and course of study are filled out.")
 
-    # 2. Industry Benchmark Comparison against active JobPostings
     query_filters = []
     if request.opportunity_type:
         query_filters.append(JobPosting.opportunity_type == request.opportunity_type)
@@ -501,6 +554,12 @@ def preview_profile_quality(
         if job.required_skills:
             tokens = extract_skill_tokens(job.required_skills)
             industry_skills_counter.update(tokens)
+
+        job_text = f"{job.title}. {job.description}. Required Skills: {job.required_skills or ''}"
+        if not job.embedding:
+            job.embedding = get_cached_embedding(job_text)
+            db.commit()
+
         if job.embedding:
             domain_job_vectors.append(job.embedding)
 
@@ -515,12 +574,11 @@ def preview_profile_quality(
         if len(missing_suggested_skills) >= 5:
             break
 
-    # 3. SBERT In-Memory Vector Encoding
     preview_text = (
         f"{request.career_goal or ''} {request.skills_text or ''} {request.bio or ''}"
     )
     if preview_text.strip() and domain_job_vectors:
-        preview_vector = np.array(sbert_model.encode(preview_text)).reshape(1, -1)
+        preview_vector = np.array(get_cached_embedding(preview_text)).reshape(1, -1)
         industry_centroid = np.mean(domain_job_vectors, axis=0).reshape(1, -1)
         semantic_sim = float(cosine_similarity(preview_vector, industry_centroid)[0][0])
 
@@ -552,55 +610,56 @@ def preview_profile_quality(
         "feedback_tips": feedback_tips,
     }
 
+
 @router.get("/search/semantic")
 def semantic_search(
-    q: str = Query(..., min_length=2, description="Natural language intent query"),
-    target: str = Query("jobs", description="Target collection: 'jobs' or 'candidates'"),
+    q: str = Query(..., min_length=2, description="Natural language query"),
+    target: str = Query(
+        "jobs", description="Target collection: 'jobs' or 'candidates'"
+    ),
     limit: int = 10,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(["student", "employer", "admin"]))
+    current_user: User = Depends(require_roles(["student", "employer", "admin"])),
 ):
     if not q.strip():
         return {"results": []}
 
-    # 1. Convert natural language query into SBERT vector embedding
-    query_vector = np.array(sbert_model.encode(q.strip())).reshape(1, -1)
+    # Query embedding retrieved from Redis cache if identical search performed
+    query_vector = np.array(get_cached_embedding(q.strip())).reshape(1, -1)
     results = []
 
-    # 2. Match intent against Job Postings (for Student Search)
     if target == "jobs":
         jobs = db.query(JobPosting).all()
         for job in jobs:
+            job_text = f"{job.title}. {job.description}. Required Skills: {job.required_skills or ''}"
             if not job.embedding:
-                job_text = f"{job.title}. {job.description}. Required Skills: {job.required_skills or ''}"
-                job.embedding = sbert_model.encode(job_text).tolist()
+                job.embedding = get_cached_embedding(job_text)
                 db.commit()
 
             job_vector = np.array(job.embedding).reshape(1, -1)
             sim = float(cosine_similarity(query_vector, job_vector)[0][0])
             match_percentage = round(sim * 100, 1)
 
-            # Similarity threshold cut-off
             if match_percentage >= 35.0:
-                results.append({
-                    "id": job.id,
-                    "title": job.title,
-                    "location": job.location,
-                    "source_type": job.source_type,
-                    "source_url": job.source_url,
-                    "match_score": match_percentage,
-                    "employer_id": job.employer_id
-                })
+                results.append(
+                    {
+                        "id": job.id,
+                        "title": job.title,
+                        "location": job.location,
+                        "source_type": job.source_type,
+                        "source_url": job.source_url,
+                        "match_score": match_percentage,
+                        "employer_id": job.employer_id,
+                    }
+                )
 
-    # 3. Match intent against Student Candidates (for Employer Search)
     elif target == "candidates":
         students = db.query(Student).all()
         for student in students:
-            if not student.embedding:
-                profile_text = f"{student.career_goal or ''}. Skills: {student.skills_text or ''}. Bio: {student.bio or ''}"
-                if profile_text.strip():
-                    student.embedding = sbert_model.encode(profile_text).tolist()
-                    db.commit()
+            profile_text = f"{student.career_goal or ''}. Skills: {student.skills_text or ''}. Bio: {student.bio or ''}"
+            if not student.embedding and profile_text.strip():
+                student.embedding = get_cached_embedding(profile_text)
+                db.commit()
 
             if student.embedding:
                 student_vector = np.array(student.embedding).reshape(1, -1)
@@ -608,15 +667,16 @@ def semantic_search(
                 match_percentage = round(sim * 100, 1)
 
                 if match_percentage >= 35.0:
-                    results.append({
-                        "id": student.user_id,
-                        "full_name": student.full_name,
-                        "institution": student.institution,
-                        "course": student.course,
-                        "skills": student.skills_text,
-                        "match_score": match_percentage
-                    })
+                    results.append(
+                        {
+                            "id": student.user_id,
+                            "full_name": student.full_name,
+                            "institution": student.institution,
+                            "course": student.course,
+                            "skills": student.skills_text,
+                            "match_score": match_percentage,
+                        }
+                    )
 
-    # 4. Rank by highest vector proximity
     results.sort(key=lambda x: x["match_score"], reverse=True)
     return {"query": q, "target": target, "results": results[:limit]}
