@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
+from utils.cv_parser import parse_cv_document
 from sqlalchemy.orm import Session
-from fastapi import Query
 from collections import Counter
 import numpy as np
 import redis
@@ -680,3 +680,20 @@ def semantic_search(
 
     results.sort(key=lambda x: x["match_score"], reverse=True)
     return {"query": q, "target": target, "results": results[:limit]}
+
+@router.post("/student/parse-cv")
+async def autofill_profile_from_cv(
+    file: UploadFile = File(...),
+    current_user: User = Depends(require_roles(["student"]))
+):
+    if not file.filename.lower().endswith((".pdf", ".docx", ".doc")):
+        raise HTTPException(status_code=400, detail="Only PDF and DOCX files are supported.")
+
+    file_bytes = await file.read()
+    parsed_data = parse_cv_document(file_bytes, file.filename)
+
+    return {
+        "status": "success",
+        "filename": file.filename,
+        "data": parsed_data
+    }
