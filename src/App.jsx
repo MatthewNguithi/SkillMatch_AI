@@ -8,7 +8,7 @@ import LoginPage from "./frontend/pages/LoginPage";
 import InboxPage from "./frontend/pages/InboxPage";
 import RegistrationPage from "./frontend/pages/Registration/RegistrationPage";
 import SavedMatchesPage from "./frontend/pages/SavedMatchesPages";
-import { ProtectedRoute, GuestRoute } from "./frontend/components/ProtectedRoute";
+import { ProtectedRoute, GuestRoute } from "./frontend/components/ProtectedRoutes";
 import "./frontend/styles/global.css";
 
 export default function App() {

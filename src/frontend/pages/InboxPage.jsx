@@ -50,21 +50,27 @@ export default function InboxPage() {
       setLoadingThread(false);
     }
   };
-
   useEffect(() => {
     fetchInbox();
-    const inboxInterval = setInterval(fetchInbox, 6000);
+    const inboxInterval = setInterval(() => {
+      if (!document.hidden) fetchInbox();
+    }, 15000);
     return () => clearInterval(inboxInterval);
   }, []);
 
   useEffect(() => {
-    if (activeContact) {
-      setLoadingThread(true);
-      fetchThread(activeContact.contact_id);
-      const threadInterval = setInterval(() => fetchThread(activeContact.contact_id), 3000);
-      return () => clearInterval(threadInterval);
-    }
-  }, [activeContact]);
+    const contactId = activeContact?.contact_id;
+    if (!contactId) return;
+
+    setLoadingThread(true);
+    fetchThread(contactId);
+
+    const threadInterval = setInterval(() => {
+      if (!document.hidden) fetchThread(contactId);
+    }, 10000);
+
+    return () => clearInterval(threadInterval);
+  }, [activeContact?.contact_id]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

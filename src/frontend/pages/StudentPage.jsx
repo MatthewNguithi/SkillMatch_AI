@@ -135,10 +135,6 @@ export default function StudentPage() {
     }));
   };
 
-  const handleFileChange = (e) => {
-    setCvFile(e.target.files[0]);
-  };
-
   // Evaluate uncommitted form data without saving to DB
   const handleCheckSuggestions = async () => {
     setAnalyzingPreview(true);
@@ -351,9 +347,35 @@ export default function StudentPage() {
           </div>
 
           <div className="form-group full-width">
-            <label>Upload CV (PDF only)</label>
-            <input type="file" accept="application/pdf" onChange={handleFileChange} required className="form-input" style={{ padding: "0.5rem" }} />
+            <label>Upload CV (PDF or DOCX)</label>
+            <input
+              type="file"
+              accept=".pdf,.docx,.doc"
+              onChange={handleFileChange}
+              required
+              className="form-input"
+              style={{ padding: "0.5rem" }}
+            />
+            {parsingCV && <small style={{ color: "#0E7C7B" }}>⚡ Extracting skills &amp; details using spaCy NER...</small>}
           </div>
+
+          {parsedMeta && (
+            <div className="cv-parser-banner">
+              <div className="cv-parser-header">
+                <h4 className="cv-parser-title">✨ Automatically Extracted from {cvFile?.name}</h4>
+                <span className="cv-parsed-tag">{parsedMeta.extracted_skills?.length || 0} Skills Detected</span>
+              </div>
+              {parsedMeta.extracted_skills?.length > 0 && (
+                <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap", marginTop: "0.4rem" }}>
+                  {parsedMeta.extracted_skills.map((skill, idx) => (
+                    <span key={idx} className="quality-skill-pill">
+                      ✓ {skill}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="consent-box" style={{ marginTop: "1rem" }}>
             <input type="checkbox" name="consent" checked={formData.consent} onChange={handleChange} required className="consent-checkbox" />
@@ -377,36 +399,7 @@ export default function StudentPage() {
         </form>
       </div>
 
-      <div className="form-group full-width">
-  <label>Upload CV (PDF or DOCX)</label>
-  <input
-    type="file"
-    accept=".pdf,.docx,.doc"
-    onChange={handleFileChange}
-    required
-    className="form-input"
-    style={{ padding: "0.5rem" }}
-  />
-  {parsingCV && <small style={{ color: "#0E7C7B" }}>⚡ Extracting skills & details using spaCy NER...</small>}
-</div>
 
-{parsedMeta && (
-  <div className="cv-parser-banner">
-    <div className="cv-parser-header">
-      <h4 className="cv-parser-title">✨ Automatically Extracted from {cvFile?.name}</h4>
-      <span className="cv-parsed-tag">{parsedMeta.extracted_skills?.length || 0} Skills Detected</span>
-    </div>
-    {parsedMeta.extracted_skills?.length > 0 && (
-      <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap", marginTop: "0.4rem" }}>
-        {parsedMeta.extracted_skills.map((skill, idx) => (
-          <span key={idx} className="quality-skill-pill">
-            ✓ {skill}
-          </span>
-        ))}
-      </div>
-    )}
-  </div>
-)}
 
       {/* SECTION 2: AI MATCHES */}
       <div className="student-card" style={{ marginTop: "2rem" }}>

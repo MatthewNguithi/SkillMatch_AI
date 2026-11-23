@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Response
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 from utils.cv_parser import parse_cv_document
@@ -13,6 +13,7 @@ from collections import Counter
 from pydantic import BaseModel
 from typing import Optional, List
 from database import get_db
+from datetime import datetime, timedelta, timezone
 from model import Student, JobPosting, User, SavedMatch
 from dependencies import get_current_user, require_roles
 
@@ -61,10 +62,46 @@ class SaveMatchRequest(BaseModel):
 
 
 class InviteMatchRequest(BaseModel):
-    student_id: Optional[int] = None
+    student_id: int
     match_score: float
-    job_title: Optional[str] = None
+    job_title: str
+    interview_date: Optional[str] = None     # e.g., "2026-11-20"
+    interview_time: Optional[str] = None     # e.g., "14:00"
+    location_or_link: Optional[str] = None  # e.g., "https://meet.google.com/abc-defg-hij"
+    notes: Optional[str] = None
 
+class RSVPRequest(BaseModel):
+    saved_match_id: int
+    status: str  # "accepted" or "declined"
+
+def create_ics_file_content(summary: str, dt_start: datetime, location: str, description: str) -> str:
+    """Generates standard iCalendar (.ics) RFC 5545 string."""
+    dt_end = dt_start + timedelta(hours=1)
+    
+    fmt = "%Y%m%dT%H%M%SZ"
+    start_str = dt_start.strftime(fmt)
+    end_str = dt_end.strftime(fmt)
+    stamp_str = datetime.now(timezone.utc).strftime(fmt)
+
+    ics_content = (
+        "BEGIN:VCALENDAR\r\n"
+        "VERSION:2.0\r\n"
+        "PRODID:-//SkillMatch//Interview Scheduler//EN\r\n"
+        "CALSCALE:GREGORIAN\r\n"
+        "METHOD:REQUEST\r\n"
+        "BEGIN:VEVENT\r\n"
+        f"UID:interview-{dt_start.timestamp()}@skillmatch.platform\r\n"
+        f"DTSTAMP:{stamp_str}\r\n"
+        f"DTSTART:{start_str}\r\n"
+        f"DTEND:{end_str}\r\n"
+        f"SUMMARY:{summary}\r\n"
+        f"LOCATION:{location}\r\n"
+        f"DESCRIPTION:{description}\r\n"
+        "STATUS:CONFIRMED\r\n"
+        "END:VEVENT\r\n"
+        "END:VCALENDAR\r\n"
+    )
+    return ics_content
 
 def extract_skill_tokens(text: str):
     if not text:
@@ -330,27 +367,24 @@ def get_student_saved_jobs(
 def candidate_invite(
     request: InviteMatchRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(["employer"])),
+    current_user: User = Depends(require_roles(["employer"]))
 ):
-    existing = (
-        db.query(SavedMatch)
-        .filter_by(
-            employer_id=current_user.id,
-            student_id=request.student_id,
-            job_title=request.job_title,
-        )
-        .first()
-    )
+    existing = db.query(SavedMatch).filter_by(
+        employer_id=current_user.id,
+        student_id=request.student_id,
+        job_title=request.job_title
+    ).first()
 
     if existing:
         existing.itv_invite = True
+        existing.interview_date = request.interview_date
+        existing.interview_time = request.interview_time
+        existing.location_or_link = request.location_or_link
+        existing.notes = request.notes
+        existing.rsvp_status = "pending"
         db.commit()
-        return {
-            "status": "success",
-            "message": "Interview invitation sent successfully!",
-        }
+        return {"status": "success", "message": "Interview invitation and schedule updated!"}
 
-    # If student wasn't saved beforehand, create a new record with itv_invite = True
     new_invite = SavedMatch(
         employer_id=current_user.id,
         student_id=request.student_id,
@@ -358,11 +392,15 @@ def candidate_invite(
         saved_by_role="employer",
         job_title=request.job_title,
         itv_invite=True,
+        interview_date=request.interview_date,
+        interview_time=request.interview_time,
+        location_or_link=request.location_or_link,
+        notes=request.notes,
+        rsvp_status="pending"
     )
     db.add(new_invite)
     db.commit()
     return {"status": "success", "message": "Interview invitation sent successfully!"}
-
 
 @router.get("/student/profile-quality")
 def check_profile_quality(
@@ -697,3 +735,60 @@ async def autofill_profile_from_cv(
         "filename": file.filename,
         "data": parsed_data
     }
+
+@router.post("/matching/student/rsvp")
+def rsvp_interview(
+    request: RSVPRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(["student"]))
+):
+    match_record = db.query(SavedMatch).filter(
+        SavedMatch.id == request.saved_match_id,
+        SavedMatch.student_id == current_user.id
+    ).first()
+
+    if not match_record:
+        raise HTTPException(status_code=404, detail="Interview invitation record not found.")
+
+    if request.status not in ["accepted", "declined"]:
+        raise HTTPException(status_code=400, detail="Invalid RSVP status. Choose 'accepted' or 'declined'.")
+
+    match_record.rsvp_status = request.status
+    db.commit()
+
+    return {
+        "status": "success",
+        "rsvp_status": match_record.rsvp_status,
+        "message": f"Interview invitation marked as {match_record.rsvp_status}."
+    }
+
+@router.get("/matching/interview/{saved_match_id}/ics")
+def download_interview_ics(
+    saved_match_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(["student", "employer", "admin"]))
+):
+    record = db.query(SavedMatch).filter(SavedMatch.id == saved_match_id).first()
+    if not record or not record.itv_invite:
+        raise HTTPException(status_code=404, detail="Scheduled interview record not found.")
+
+    # Parse date and time or default to tomorrow 10:00 AM
+    try:
+        dt_str = f"{record.interview_date} {record.interview_time}"
+        dt_start = datetime.strptime(dt_str, "%Y-%m-%d %H:%M")
+    except Exception:
+        dt_start = datetime.now(timezone.utc) + timedelta(days=1)
+
+    summary = f"Interview: {record.job_title or 'Position'} on SkillMatch"
+    location = record.location_or_link or "Online Meeting"
+    description = f"Interview invitation for {record.job_title}. Notes: {record.notes or 'None'}"
+
+    ics_data = create_ics_file_content(summary, dt_start, location, description)
+
+    return Response(
+        content=ics_data,
+        media_type="text/calendar",
+        headers={
+            "Content-Disposition": f"attachment; filename=interview_{saved_match_id}.ics"
+        }
+    )

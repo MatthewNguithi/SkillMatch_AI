@@ -1,13 +1,22 @@
 import os
+import warnings
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from fastapi import HTTPException, status, Depends
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "skillmatch_super_secret_key_change_in_production_123!")
+_DEFAULT_SECRET = "skillmatch_super_secret_key_change_in_production_123!"
+SECRET_KEY = os.getenv("JWT_SECRET_KEY", _DEFAULT_SECRET)
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # Tokens valid for 24 hours
+
+if SECRET_KEY == _DEFAULT_SECRET:
+    warnings.warn(
+        "\n⚠️  JWT_SECRET_KEY is not set — using the insecure default key!\n"
+        "   Set JWT_SECRET_KEY in your .env file before deploying to production.",
+        stacklevel=2,
+    )
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -19,6 +28,6 @@ def get_password_hash(password: str) -> str:
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
-    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)

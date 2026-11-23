@@ -1,18 +1,21 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import datetime
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional
 from database import get_db
 from model import Message, User, Student, Employer
 from dependencies import require_roles
 
 router = APIRouter(prefix="/messages", tags=["Messages"])
 
+
 class SendMessageRequest(BaseModel):
     receiver_id: int
     content: str
     job_title: Optional[str] = "General Inquiry"
+
 
 class MessageResponse(BaseModel):
     id: int
@@ -21,12 +24,12 @@ class MessageResponse(BaseModel):
     job_title: Optional[str]
     content: str
     is_read: bool
-    created_at: str
+    created_at: datetime
 
     class Config:
         from_attributes = True
 
-# 1. Send a Message
+
 @router.post("/send")
 def send_message(
     request: SendMessageRequest,
@@ -49,9 +52,13 @@ def send_message(
     db.add(new_msg)
     db.commit()
     db.refresh(new_msg)
-    return {"status": "success", "message": "Message sent successfully.", "data": new_msg}
+    return {
+        "status": "success",
+        "message": "Message sent successfully.",
+        "data": MessageResponse.model_validate(new_msg)
+    }
 
-# 2. Get Chat Thread between Current User & Target User
+
 @router.get("/thread/{other_user_id}")
 def get_chat_thread(
     other_user_id: int,
@@ -65,15 +72,20 @@ def get_chat_thread(
         )
     ).order_by(Message.created_at.asc()).all()
 
-    # Mark incoming unread messages as read
-    db.query(Message).filter(
+    # Serialize BEFORE db.commit() expires the ORM instances
+    serialized_messages = [MessageResponse.model_validate(m) for m in messages]
+
+    # Only write to the DB if there are actually unread messages
+    updated_rows = db.query(Message).filter(
         Message.sender_id == other_user_id,
         Message.receiver_id == current_user.id,
         Message.is_read == False
     ).update({"is_read": True})
-    db.commit()
 
-    return {"messages": messages}
+    if updated_rows > 0:
+        db.commit()
+
+    return {"messages": serialized_messages}
 
 # 3. Get Active Conversations (Inbox Summary)
 @router.get("/inbox")
