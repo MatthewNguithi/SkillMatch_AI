@@ -100,17 +100,24 @@ class Admin(Base):
 
 class SavedMatch(Base):
     __tablename__ = "saved_matches"
+
     id = Column(BigInteger, primary_key=True, index=True)
-    student_id = Column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     employer_id = Column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
+    student_id = Column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     job_id = Column(BigInteger, ForeignKey("job_postings.id", ondelete="CASCADE"), nullable=True)
     match_score = Column(Float, nullable=False)
-    saved_by_role = Column(String(50), nullable=False) 
-    
-    itv_invite = Column(Boolean, default=False, nullable=False)
+    saved_by_role = Column(String(20), nullable=False)  # 'employer' or 'student'
     job_title = Column(String(200), nullable=True)
-    
-    created_at = Column(DateTime, server_default=func.now())
+    itv_invite = Column(Boolean, default=False)
+
+    # --- Interview & RSVP Fields ---
+    interview_date = Column(String(50), nullable=True)     # Format: YYYY-MM-DD
+    interview_time = Column(String(50), nullable=True)     # Format: HH:MM (24-hr)
+    location_or_link = Column(String(255), nullable=True) # Google Meet link or physical office
+    rsvp_status = Column(String(20), default="pending")    # 'pending', 'accepted', 'declined'
+    notes = Column(Text, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 class Message(Base):
     __tablename__ = "messages"

@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import random
 
 from emails_util import send_otp_email
@@ -54,7 +54,7 @@ def register(user_data: UserRegister, db: Session = Depends(get_db)):
     hashed_pwd = get_password_hash(user_data.password)
 
     otp = str(random.randint(100000, 999999))
-    expiration = datetime.utcnow() + timedelta(minutes=10)
+    expiration = datetime.now(timezone.utc) + timedelta(minutes=10)
 
     auto_approve = True if user_data.role == "student" else False
 
@@ -99,7 +99,7 @@ def verify_otp(payload: OTPVerify, db: Session = Depends(get_db)):
             detail="Invalid OTP code."
         )
 
-    if user.otp_expires_at < datetime.utcnow():
+    if user.otp_expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
         raise HTTPException(
             status_code=401,
             detail="OTP code has expired."
@@ -108,7 +108,7 @@ def verify_otp(payload: OTPVerify, db: Session = Depends(get_db)):
     user.is_verified = True
     user.otp_code = None
     user.otp_expires_at = None
-    user.last_login = datetime.utcnow()
+    user.last_login = datetime.now(timezone.utc)
     db.commit()
 
     access_token = create_access_token(data={"sub": str(user.id), "role": user.role})
@@ -143,7 +143,7 @@ def login(credentials: OAuth2PasswordRequestForm = Depends(), db: Session = Depe
                 detail="Your account is pending for Admin approval."
             )
 
-        user.last_login = datetime.utcnow()
+        user.last_login = datetime.now(timezone.utc)
         db.commit()
 
         access_token = create_access_token(data={"sub": str(user.id), "role": user.role})
@@ -158,7 +158,7 @@ def login(credentials: OAuth2PasswordRequestForm = Depends(), db: Session = Depe
     # 2. Check the isolated Admin table
     admin_account = db.query(Admin).filter(Admin.email == credentials.username).first()
     if admin_account and verify_password(credentials.password, admin_account.password_hash):
-        admin_account.last_login = datetime.utcnow()
+        admin_account.last_login = datetime.now(timezone.utc)
         db.commit()
 
         access_token = create_access_token(data={"sub": str(admin_account.id), "role": "admin"})

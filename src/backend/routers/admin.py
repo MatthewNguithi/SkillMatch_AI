@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timezone
 
 from database import get_db
 from model import User, Employer, Admin
@@ -24,7 +24,7 @@ def admin_login(
             detail="Invalid admin credentials."
         )
 
-    admin.last_login = datetime.utcnow()
+    admin.last_login = datetime.now(timezone.utc)
     db.commit()
 
     access_token = create_access_token(data={"sub": str(admin.id), "role": "admin"})

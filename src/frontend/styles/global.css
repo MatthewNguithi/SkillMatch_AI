@@ -825,3 +825,107 @@ small {
   font-size: 0.78rem;
   font-weight: 600;
 }
+
+/* =========================================
+   INTERVIEW & RSVP CARD STYLES
+========================================= */
+.interview-card {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin-top: 1rem;
+}
+
+.interview-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.interview-card-title {
+  margin: 0;
+  color: #0D2B55;
+  font-size: 1.05rem;
+}
+
+.rsvp-badge {
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.rsvp-badge.pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.rsvp-badge.accepted {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.rsvp-badge.declined {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.interview-details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+  background: #f8fafc;
+  padding: 0.85rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-size: 0.88rem;
+}
+
+.interview-detail-item {
+  color: #334155;
+}
+
+.interview-actions {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.btn-accept {
+  background: #166534;
+  color: #ffffff;
+  border: none;
+  padding: 0.45rem 1rem;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.btn-decline {
+  background: #991b1b;
+  color: #ffffff;
+  border: none;
+  padding: 0.45rem 1rem;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.btn-ics-download {
+  background: #0E7C7B;
+  color: #ffffff;
+  text-decoration: none;
+  padding: 0.45rem 0.9rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}

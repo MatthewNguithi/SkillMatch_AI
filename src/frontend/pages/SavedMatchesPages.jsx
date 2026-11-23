@@ -102,7 +102,7 @@ export default function SavedMatchesPage() {
                 Role: {jobTitle}
               </h2>
               {candidates.map((candidate, index) => (
-                <CandidateCard key={candidate.id} candidate={candidate} rank={index + 1} />
+                <CandidateCard key={candidate.id} candidate={candidate} rank={index + 1} searchedJobTitle={candidate.job_title} />
               ))}
             </div>
           ))
