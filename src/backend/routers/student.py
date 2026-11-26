@@ -9,9 +9,37 @@ from dependencies import require_roles
 
 router = APIRouter(prefix="/student", tags=["Students"])
 
+
 @router.get("/dashboard")
-def student_dashboard(current_user: User = Depends(require_roles(["student", "informal_worker", "admin"]))):
-    return {"message": f"Welcome Student/Trainee {current_user.email}!"}
+def student_dashboard(
+    current_user: User = Depends(require_roles(["student", "informal_worker", "admin"])),
+    db: Session = Depends(get_db),
+):
+    profile = db.query(Student).filter(Student.user_id == current_user.id).first()
+    has_profile = bool(profile and profile.skills_text and profile.consent)
+    return {
+        "message": f"Welcome Student/Trainee {current_user.email}!",
+        "has_profile": has_profile,
+        "profile": {
+            "full_name": profile.full_name if profile else "",
+            "phone": profile.phone if profile else "",
+            "institution": profile.institution if profile else "",
+            "course": profile.course if profile else "",
+            "year_of_study": profile.year_of_study if profile else "",
+            "career_goal": profile.career_goal if profile else "",
+            "opportunity_type": profile.opportunity_type if profile else "",
+            "county": profile.county if profile else "",
+            "skills_text": profile.skills_text if profile else "",
+            "bio": profile.bio if profile else "",
+            "cv_filename": profile.cv_filename if profile else None,
+            "has_cv": bool(
+                profile and profile.cv_file_path and os.path.isfile(profile.cv_file_path)
+            ),
+        }
+        if profile
+        else None,
+    }
+
 
 @router.post("/upload-cv")
 def upload_student_cv(
@@ -28,18 +56,19 @@ def upload_student_cv(
     consent: bool = Form(...),
     file: UploadFile = File(...),
     current_user: User = Depends(require_roles(["student", "informal_worker"])),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
-    if not file.filename.lower().endswith(".pdf"):
+    safe_filename = os.path.basename(file.filename or "")
+    if not safe_filename.lower().endswith(".pdf"):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, 
-            detail="Only PDF files are allowed for CV uploads."
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only PDF files are allowed for CV uploads.",
         )
 
     upload_dir = "uploads/cvs"
     os.makedirs(upload_dir, exist_ok=True)
-    file_path = os.path.join(upload_dir, f"{current_user.id}_{file.filename}")
-    
+    file_path = os.path.join(upload_dir, f"{current_user.id}_{safe_filename}")
+
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
@@ -47,7 +76,7 @@ def upload_student_cv(
     if not profile:
         profile = Student(user_id=current_user.id)
         db.add(profile)
-    
+
     profile.full_name = full_name
     profile.phone = phone
     profile.institution = institution
@@ -59,12 +88,14 @@ def upload_student_cv(
     profile.skills_text = skills_text
     profile.bio = bio
     profile.consent = consent
+    profile.cv_filename = safe_filename
+    profile.cv_file_path = file_path
 
     db.commit()
 
     return {
         "status": "success",
         "message": f"Profile and CV successfully updated for {full_name}.",
-        "filename": file.filename,
-        "path": file_path
+        "filename": safe_filename,
+        "path": file_path,
     }

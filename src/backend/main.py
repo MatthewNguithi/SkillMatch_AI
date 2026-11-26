@@ -11,8 +11,8 @@ from model import User, Admin
 from schemas import UserRegister, UserLogin, Token, UserOut, OTPVerify
 from auth import get_password_hash, verify_password, create_access_token
 from dependencies import get_current_user, require_roles
-
-# Import modular routers
+from applications import router as applications_router
+from employer_jobs import router as employer_jobs_router
 from routers import student, employer, admin, matching, messages
 
 # Create tables automatically on launch
@@ -35,22 +35,19 @@ app.add_middleware(
 # AUTHENTICATION ROUTES
 # -------------------------------------------------------------
 
+
 @app.post("/api/v1/auth/register", status_code=status.HTTP_201_CREATED)
 def register(user_data: UserRegister, db: Session = Depends(get_db)):
     if user_data.role not in ["student", "employer"]:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid role selected."
-        )
-    
+        raise HTTPException(status_code=400, detail="Invalid role selected.")
+
     existing_user = db.query(User).filter(User.email == user_data.email).first()
     if existing_user:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, 
-            detail="Email address is already registered."
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email address is already registered.",
         )
 
-    
     hashed_pwd = get_password_hash(user_data.password)
 
     otp = str(random.randint(100000, 999999))
@@ -68,42 +65,33 @@ def register(user_data: UserRegister, db: Session = Depends(get_db)):
         is_verified=False,
         is_approved=auto_approve,
         otp_code=otp,
-        otp_expires_at=expiration
+        otp_expires_at=expiration,
     )
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
 
     send_otp_email(new_user.email, otp, new_user.first_name)
-    return {"message": "User registered successfully. Please check your email for the OTP code."}
+    return {
+        "message": "User registered successfully. Please check your email for the OTP code."
+    }
+
 
 @app.post("/api/v1/auth/verify-otp", response_model=Token)
 def verify_otp(payload: OTPVerify, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == payload.email).first()
 
     if not user:
-        raise HTTPException(
-            status_code=404,
-            detail="User not found."
-        )
+        raise HTTPException(status_code=404, detail="User not found.")
 
     if user.is_verified:
-        raise HTTPException(
-            status_code=400,
-            detail="Account is already verified."
-        )
+        raise HTTPException(status_code=400, detail="Account is already verified.")
 
     if user.otp_code != payload.otp_code:
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid OTP code."
-        )
+        raise HTTPException(status_code=401, detail="Invalid OTP code.")
 
     if user.otp_expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
-        raise HTTPException(
-            status_code=401,
-            detail="OTP code has expired."
-        )
+        raise HTTPException(status_code=401, detail="OTP code has expired.")
 
     user.is_verified = True
     user.otp_code = None
@@ -119,69 +107,80 @@ def verify_otp(payload: OTPVerify, db: Session = Depends(get_db)):
         "user_id": user.id,
     }
 
+
 @app.post("/api/v1/auth/login", response_model=Token)
-def login(credentials: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+def login(
+    credentials: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
+):
     # 1. Check if the email belongs to a Student or Employer in the User table
     user = db.query(User).filter(User.email == credentials.username).first()
-    
+
     if user:
         if not verify_password(credentials.password, user.password_hash):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid email or password."
+                detail="Invalid email or password.",
             )
 
         if not user.is_verified:
             raise HTTPException(
                 status_code=403,
-                detail="Please verify your email via OTP before logging in."
+                detail="Please verify your email via OTP before logging in.",
             )
 
         if not user.is_approved:
             raise HTTPException(
-                status_code=403,
-                detail="Your account is pending for Admin approval."
+                status_code=403, detail="Your account is pending for Admin approval."
             )
 
         user.last_login = datetime.now(timezone.utc)
         db.commit()
 
-        access_token = create_access_token(data={"sub": str(user.id), "role": user.role})
-        
+        access_token = create_access_token(
+            data={"sub": str(user.id), "role": user.role}
+        )
+
         return {
             "access_token": access_token,
             "token_type": "bearer",
             "role": user.role,
-            "user_id": user.id
+            "user_id": user.id,
         }
 
     # 2. Check the isolated Admin table
     admin_account = db.query(Admin).filter(Admin.email == credentials.username).first()
-    if admin_account and verify_password(credentials.password, admin_account.password_hash):
+    if admin_account and verify_password(
+        credentials.password, admin_account.password_hash
+    ):
         admin_account.last_login = datetime.now(timezone.utc)
         db.commit()
 
-        access_token = create_access_token(data={"sub": str(admin_account.id), "role": "admin"})
-        
+        access_token = create_access_token(
+            data={"sub": str(admin_account.id), "role": "admin"}
+        )
+
         return {
             "access_token": access_token,
             "token_type": "bearer",
             "role": "admin",
-            "user_id": admin_account.id
+            "user_id": admin_account.id,
         }
 
     # 3. Neither table matched or credentials were invalid
     raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Invalid email or password."
+        status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password."
     )
+
 
 @app.get("/api/v1/auth/me", response_model=UserOut)
 def get_me(current_user: User = Depends(get_current_user)):
     return current_user
 
+
 app.include_router(student.router, prefix="/api/v1")
 app.include_router(employer.router, prefix="/api/v1")
 app.include_router(matching.router, prefix="/api/v1")
 app.include_router(messages.router, prefix="/api/v1")
+app.include_router(employer_jobs_router, prefix="/api/v1", tags=["Employer Jobs"])
 app.include_router(admin.router, prefix="/api/v1")
+app.include_router(applications_router)

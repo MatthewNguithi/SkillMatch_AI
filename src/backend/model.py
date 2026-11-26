@@ -37,7 +37,6 @@ class Employer(Base):
     company_website = Column(String, nullable=True)
     company_description = Column(Text, nullable=False)
 
-    # Added: Relationship back to User matching User.employer_profile (back_populates="user")
     user = relationship("User", back_populates="employer_profile")
     job_postings = relationship("JobPosting", back_populates="employer")
 
@@ -59,6 +58,9 @@ class Student(Base):
     skills_text = Column(Text, nullable=False)
     bio = Column(Text, nullable=True)
     consent = Column(Boolean, default=False, nullable=False)
+
+    cv_filename = Column(String(255), nullable=True)
+    cv_file_path = Column(String(500), nullable=True)
     
     embedding = Column(JSON, nullable=True)
 
@@ -77,6 +79,8 @@ class JobPosting(Base):
 
     source_type = Column(String(50), default="internal") 
     source_url = Column(String, nullable=True) 
+    status = Column(String(20), default="open", nullable=False)
+    hired_student_user_id = Column(BigInteger, ForeignKey("users.id"), nullable=True)
     
     employer_id = Column(Integer, ForeignKey("employers.id", ondelete="CASCADE"), nullable=True)
     embedding = Column(JSON, nullable=True)
@@ -98,6 +102,7 @@ class Admin(Base):
     
     last_login = Column(DateTime, nullable=True)
 
+
 class SavedMatch(Base):
     __tablename__ = "saved_matches"
 
@@ -118,6 +123,7 @@ class SavedMatch(Base):
     notes = Column(Text, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow)
+
 
 class Message(Base):
     __tablename__ = "messages"
