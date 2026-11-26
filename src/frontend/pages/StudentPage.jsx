@@ -25,31 +25,79 @@ export default function StudentPage() {
   });
 
   const [cvFile, setCvFile] = useState(null);
+  const [hasProfile, setHasProfile] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  // AI Matches & Preview Analysis State
-  const [matches, setMatches] = useState([]);
-  const [loadingMatches, setLoadingMatches] = useState(false);
+  const [displayedJobs, setDisplayedJobs] = useState([]);
+  const [resultsHeading, setResultsHeading] = useState("");
+  const [savedJobIds, setSavedJobIds] = useState(new Set());
+  const [savingJobId, setSavingJobId] = useState(null);
+
   const [qualityPreview, setQualityPreview] = useState(null);
   const [analyzingPreview, setAnalyzingPreview] = useState(false);
+  const [parsingCV, setParsingCV] = useState(false);
+  const [parsedMeta, setParsedMeta] = useState(null);
 
-  const [searchResults, setSearchResults] = useState(null);
-  const [searchQueryText, setSearchQueryText] = useState("");
+  useEffect(() => {
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+
+    async function initDashboard() {
+      try {
+        const dashData = await getStudentDashboard();
+        if (dashData?.has_profile) {
+          setHasProfile(true);
+          if (dashData.profile) {
+            setFormData((prev) => ({
+              ...prev,
+              fullName: dashData.profile.full_name || prev.fullName,
+              phone: dashData.profile.phone || prev.phone,
+              institution: dashData.profile.institution || prev.institution,
+              course: dashData.profile.course || prev.course,
+              yearOfStudy: dashData.profile.year_of_study || prev.yearOfStudy,
+              careerGoal: dashData.profile.career_goal || prev.careerGoal,
+              opportunityType: dashData.profile.opportunity_type || prev.opportunityType,
+              county: dashData.profile.county || prev.county,
+              skillsText: dashData.profile.skills_text || prev.skillsText,
+              bio: dashData.profile.bio || prev.bio,
+            }));
+          }
+        }
+
+        const savedRes = await fetch(`${API_BASE_URL}/api/v1/matching/student/saved`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (savedRes.ok) {
+          const savedData = await savedRes.json();
+          const ids = (savedData.saved_jobs || [])
+            .filter((item) => !item.can_reapply)
+            .map((item) => item.job_id)
+            .filter(Boolean);
+          setSavedJobIds(new Set(ids));
+        }
+      } catch (err) {
+        setError("Failed to load dashboard data. Please log in again.");
+        navigate("/login");
+      }
+    }
+
+    initDashboard();
+  }, [navigate]);
 
   const handleSearchResults = (results, queryText) => {
-    setSearchResults(results);
-    setSearchQueryText(queryText);
+    setDisplayedJobs(results || []);
+    setResultsHeading(`Search Results for "${queryText}"`);
   };
 
   const handleClearSearch = () => {
-    setSearchResults(null);
-    setSearchQueryText("");
+    setDisplayedJobs([]);
+    setResultsHeading("");
   };
-
-  const [parsingCV, setParsingCV] = useState(false);
-  const [parsedMeta, setParsedMeta] = useState(null);
 
   const handleFileChange = async (e) => {
     const selectedFile = e.target.files[0];
@@ -59,7 +107,6 @@ export default function StudentPage() {
     setParsingCV(true);
     setError("");
 
-    // Trigger automated spaCy / PyMuPDF parsing API
     const token = localStorage.getItem("access_token");
     const parsePayload = new FormData();
     parsePayload.append("file", selectedFile);
@@ -76,13 +123,12 @@ export default function StudentPage() {
         const { extracted_skills, institution, phone } = result.data;
         setParsedMeta(result.data);
 
-        // Autofill missing form fields dynamically
         setFormData((prev) => {
           const existingSkills = prev.skillsText
             ? prev.skillsText.split(",").map((s) => s.trim()).filter(Boolean)
             : [];
           const combinedSkills = Array.from(
-            new Set([...existingSkills, ...extracted_skills])
+            new Set([...existingSkills, ...(extracted_skills || [])])
           ).join(", ");
 
           return {
@@ -100,33 +146,6 @@ export default function StudentPage() {
     }
   };
 
-  useEffect(() => {
-    const token = localStorage.getItem("access_token");
-    if (!token) {
-      navigate("/login");
-      return;
-    }
-
-    async function loadDashboardAndMatches() {
-      try {
-        const data = await getStudentDashboard();
-        setLoadingMatches(true);
-        const res = await fetch(`${API_BASE_URL}/api/v1/student/matches`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const matchData = await res.json();
-        if (res.ok) setMatches(matchData.matches || []);
-      } catch (err) {
-        setError("Failed to load dashboard data. Please log in again.");
-        navigate("/login");
-      } finally {
-        setLoadingMatches(false);
-      }
-    }
-
-    loadDashboardAndMatches();
-  }, [navigate]);
-
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
@@ -135,7 +154,6 @@ export default function StudentPage() {
     }));
   };
 
-  // Evaluate uncommitted form data without saving to DB
   const handleCheckSuggestions = async () => {
     setAnalyzingPreview(true);
     setError("");
@@ -170,16 +188,74 @@ export default function StudentPage() {
     }
   };
 
-  // Append clicked suggestion directly into form inputs
   const handleAddSkillToForm = (skill) => {
     setFormData((prev) => {
-      const currentSkills = prev.skillsText ? prev.skillsText.split(",").map((s) => s.trim()) : [];
+      const currentSkills = prev.skillsText
+        ? prev.skillsText.split(",").map((s) => s.trim()).filter(Boolean)
+        : [];
       if (!currentSkills.includes(skill)) {
         const updated = [...currentSkills, skill].join(", ");
         return { ...prev, skillsText: updated };
       }
       return prev;
     });
+  };
+
+  const handleSaveMatch = async (job) => {
+    if (!hasProfile) {
+      setError("Please complete and save your profile & CV below before saving a match.");
+      return;
+    }
+
+    const resolvedJobId = job.job_id ?? job.id;
+    if (!resolvedJobId) {
+      setError("Invalid job identifier. Please refresh and try again.");
+      return;
+    }
+
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+
+    setSavingJobId(resolvedJobId);
+    setError("");
+    setSuccess("");
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/matching/save`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          job_id: resolvedJobId,
+          job_title: job.title,
+          match_score: job.match_score ?? 0,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || "Failed to save match.");
+      }
+
+      setSavedJobIds((prev) => new Set(prev).add(resolvedJobId));
+      setDisplayedJobs((prev) =>
+        prev.map((item) =>
+          (item.job_id ?? item.id) === resolvedJobId
+            ? { ...item, can_reapply: false, already_applied: true, status_key: "applied" }
+            : item
+        )
+      );
+      setSuccess(`Match saved for "${job.title}". The employer can now view your profile.`);
+    } catch (err) {
+      setError(err.message || "Could not save match.");
+    } finally {
+      setSavingJobId(null);
+    }
   };
 
   const handleSubmit = async (event) => {
@@ -210,14 +286,18 @@ export default function StudentPage() {
 
     try {
       await uploadStudentCV(payload);
-      setSuccess("Profile and CV submitted successfully! Analyzing your skills...");
+      setHasProfile(true);
+      setSuccess("Profile and CV submitted! Finding matching opportunities...");
 
       const token = localStorage.getItem("access_token");
       const res = await fetch(`${API_BASE_URL}/api/v1/student/matches`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const matchData = await res.json();
-      if (res.ok) setMatches(matchData.matches || []);
+      if (res.ok) {
+        setDisplayedJobs(matchData.matches || []);
+        setResultsHeading("Matched Opportunities");
+      }
     } catch (err) {
       setError(err.message || "Failed to submit profile.");
     } finally {
@@ -229,10 +309,14 @@ export default function StudentPage() {
     <div className="page-container-narrow">
       <header className="student-header">
         <h1 className="student-title">Student Dashboard</h1>
-        <p className="student-subtitle">Complete your profile and upload your CV to get matched with employers.</p>
+        <p className="student-subtitle">
+          Search opportunities or complete your profile and CV to match with employers.
+        </p>
       </header>
 
-      {/* Render AI Quality Suggestions Widget if requested */}
+      {error && <div className="login-error banner-spaced">{error}</div>}
+      {success && <div className="success-message banner-spaced">{success}</div>}
+
       {qualityPreview && (
         <ProfileQualityWidget
           qualityData={qualityPreview}
@@ -240,52 +324,101 @@ export default function StudentPage() {
         />
       )}
 
-      <div className="student-card" style={{ marginTop: "2rem" }}>
+      {/* SEARCH & MATCH RESULTS */}
+      <div className="student-card section-spaced">
         <SemanticSearchBar
           target="jobs"
           onSearchResults={handleSearchResults}
           onClear={handleClearSearch}
           placeholder="e.g., Remote entry-level React developer with state management"
-          sampleQueries={[
-            "Remote entry-level React developer with state management",
-            "Legal intern with contract drafting experience",
-            "Part-time data analyst using SQL and Python"
-          ]}
+          sampleQueries={[            "Remote entry-level React developer with state management",            "Legal intern with contract drafting experience",            "Part-time data analyst using SQL and Python",          ]}
         />
 
-        <h2>
-          {searchResults !== null
-            ? `Semantic Search Results for "${searchQueryText}"`
-            : "AI Recommended Opportunities"}
-        </h2>
+        {!hasProfile && (
+          <p className="student-profile-notice">
+            Complete and submit your profile &amp; CV below to unlock <strong>Save Match</strong> on search results.
+          </p>
+        )}
 
-        {/* Display either searchResults or default profile matches */}
-        {loadingMatches ? (
-          <p>Analyzing profile and matching live jobs...</p>
-        ) : (searchResults !== null ? searchResults : matches).length === 0 ? (
-          <p>No matching opportunities found for this query.</p>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "1rem", marginTop: "1rem" }}>
-            {(searchResults !== null ? searchResults : matches).map((job) => (
-              <div key={job.id} style={{ border: "1px solid #e2e8f0", padding: "1.2rem", borderRadius: "10px", background: "#f8fafc" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <h3 style={{ margin: 0, color: "#0d2b55" }}>{job.title}</h3>
-                  <span style={{ background: "#0E7C7B", color: "#fff", padding: "0.25rem 0.75rem", borderRadius: "12px", fontSize: "0.85rem", fontWeight: "bold" }}>
-                    {job.match_score}% Intent Fit
-                  </span>
+        {resultsHeading && (
+          <h2 className="student-results-heading">{resultsHeading}</h2>
+        )}
+
+        {displayedJobs.length > 0 && (
+          <div className="student-results-list">
+            {displayedJobs.map((job, idx) => {
+              const resolvedJobId = job.job_id ?? job.id;
+              const isSaved =
+                Boolean(resolvedJobId && savedJobIds.has(resolvedJobId)) ||
+                (Boolean(job.already_applied) && !job.can_reapply);
+              const isSaving =
+                resolvedJobId != null && savingJobId === resolvedJobId;
+
+              return (
+                <div
+                  key={resolvedJobId ?? `${job.title}-${idx}`}
+                  className="student-job-card"
+                >
+                  <div className="student-job-card-header">
+                    <h3 className="student-job-title">{job.title}</h3>
+                    <span className="student-job-score">
+                      {job.match_score}% Match
+                    </span>
+                  </div>
+                  <p className="student-job-location">Location: {job.location}</p>
+                  <div className="student-job-footer">
+                    <span
+                      className={`student-source-badge ${
+                        job.source_type === "internal" ? "internal" : "external"
+                      }`}
+                    >
+                      {job.source_type === "internal" ? "★ Verified Partner" : "Web Opportunity"}
+                    </span>
+
+                    {job.source_url ? (
+                      <a
+                        href={job.source_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="btn-primary btn-compact"
+                      >
+                        Apply on Web
+                      </a>
+                    ) : isSaved ? (
+                      <button
+                        type="button"
+                        disabled
+                        className="btn-primary btn-compact btn-disabled-muted"
+                      >
+                        ✓ Match Saved
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleSaveMatch(job)}
+                        disabled={!hasProfile || isSaving}
+                        title={!hasProfile ? "Submit your profile & CV first to save a match" : "Save match and notify employer"}
+                        className={`btn-primary btn-compact${!hasProfile ? " btn-blocked" : ""}`}
+                      >
+                        {isSaving
+                          ? "Saving..."
+                          : !hasProfile
+                          ? "Complete Profile to Match"
+                          : job.can_reapply
+                          ? "Reapply / Save Match"
+                          : "Save Match"}
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <p style={{ margin: "0.5rem 0", color: "#64748b", fontSize: "0.9rem" }}>Location: {job.location}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
 
-      {/* SECTION 1: PROFILE FORM */}
-      <div className="student-card">
-        {error && <div className="login-error">{error}</div>}
-        {success && <div className="success-message">{success}</div>}
-
+      {/* PROFILE FORM */}
+      <div className="student-card section-spaced">
         <form onSubmit={handleSubmit} className="profile-form">
           <div className="student-grid">
             <div className="form-group">
@@ -341,9 +474,17 @@ export default function StudentPage() {
             </div>
           </div>
 
-          <div className="form-group full-width" style={{ marginTop: "1rem" }}>
+          <div className="form-group full-width banner-top-spaced">
             <label>Core Skills (Comma separated)</label>
-            <textarea name="skillsText" rows="3" value={formData.skillsText} onChange={handleChange} placeholder="e.g., Python, React, Data Analysis" required className="form-textarea"></textarea>
+            <textarea
+              name="skillsText"
+              rows="3"
+              value={formData.skillsText}
+              onChange={handleChange}
+              placeholder="e.g., Python, React, Data Analysis"
+              required
+              className="form-textarea"
+            />
           </div>
 
           <div className="form-group full-width">
@@ -353,10 +494,9 @@ export default function StudentPage() {
               accept=".pdf,.docx,.doc"
               onChange={handleFileChange}
               required
-              className="form-input"
-              style={{ padding: "0.5rem" }}
+              className="form-input form-input-file"
             />
-            {parsingCV && <small style={{ color: "#0E7C7B" }}>⚡ Extracting skills &amp; details using spaCy NER...</small>}
+            {parsingCV && <small className="student-parsing-status">⚡ Extracting skills &amp; details using spaCy NER...</small>}
           </div>
 
           {parsedMeta && (
@@ -366,7 +506,7 @@ export default function StudentPage() {
                 <span className="cv-parsed-tag">{parsedMeta.extracted_skills?.length || 0} Skills Detected</span>
               </div>
               {parsedMeta.extracted_skills?.length > 0 && (
-                <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap", marginTop: "0.4rem" }}>
+                <div className="student-parsed-skills">
                   {parsedMeta.extracted_skills.map((skill, idx) => (
                     <span key={idx} className="quality-skill-pill">
                       ✓ {skill}
@@ -377,12 +517,19 @@ export default function StudentPage() {
             </div>
           )}
 
-          <div className="consent-box" style={{ marginTop: "1rem" }}>
-            <input type="checkbox" name="consent" checked={formData.consent} onChange={handleChange} required className="consent-checkbox" />
+          <div className="consent-box">
+            <input
+              type="checkbox"
+              name="consent"
+              checked={formData.consent}
+              onChange={handleChange}
+              required
+              className="consent-checkbox"
+            />
             <span className="consent-label">I consent to having my CV processed by the SkillMatch AI model.</span>
           </div>
 
-          <div className="student-actions" style={{ marginTop: "1.5rem", display: "flex", gap: "1rem", justifyContent: "flex-end" }}>
+          <div className="action-row-spaced">
             <button
               type="button"
               onClick={handleCheckSuggestions}
@@ -397,42 +544,6 @@ export default function StudentPage() {
             </button>
           </div>
         </form>
-      </div>
-
-
-
-      {/* SECTION 2: AI MATCHES */}
-      <div className="student-card" style={{ marginTop: "2rem" }}>
-        <h2>AI Recommended Opportunities</h2>
-        {loadingMatches ? (
-          <p>Analyzing your profile and matching with live jobs...</p>
-        ) : matches.length === 0 ? (
-          <p>No job matches found yet. Complete your profile above to generate recommendations!</p>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "1rem", marginTop: "1rem" }}>
-            {matches.map((job) => (
-              <div key={job.id} style={{ border: "1px solid #e2e8f0", padding: "1.2rem", borderRadius: "10px", background: "#f8fafc" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <h3 style={{ margin: 0, color: "#0d2b55" }}>{job.title}</h3>
-                  <span style={{ background: "#0E7C7B", color: "#fff", padding: "0.25rem 0.75rem", borderRadius: "12px", fontSize: "0.85rem", fontWeight: "bold" }}>
-                    {job.match_score}% Match
-                  </span>
-                </div>
-                <p style={{ margin: "0.5rem 0", color: "#64748b", fontSize: "0.9rem" }}>Location: {job.location}</p>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "1rem" }}>
-                  <span style={{ fontSize: "0.8rem", padding: "0.2rem 0.5rem", borderRadius: "4px", background: job.source_type === "internal" ? "#FEF3C7" : "#E2E8F0", color: job.source_type === "internal" ? "#92400E" : "#475569" }}>
-                    {job.source_type === "internal" ? "★ Verified Partner" : "Web Opportunity"}
-                  </span>
-                  {job.source_url ? (
-                    <a href={job.source_url} target="_blank" rel="noreferrer" className="btn-primary" style={{ padding: "0.4rem 0.8rem", fontSize: "0.85rem" }}>Apply on Web</a>
-                  ) : (
-                    <button className="btn-primary" style={{ padding: "0.4rem 0.8rem", fontSize: "0.85rem" }}>Apply Directly</button>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );

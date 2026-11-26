@@ -11,7 +11,7 @@ export default function NavBar() {
   const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
   useEffect(() => {
-    if (!token) return;
+    if (!token || role === "admin") return;
 
     const fetchUnread = async () => {
       try {
@@ -30,7 +30,7 @@ export default function NavBar() {
     fetchUnread();
     const interval = setInterval(fetchUnread, 10000); // Poll every 10s
     return () => clearInterval(interval);
-  }, [token, API_BASE_URL]);
+  }, [token, role, API_BASE_URL]);
 
   const handleLogout = () => {
     localStorage.clear();
@@ -61,21 +61,35 @@ export default function NavBar() {
             </NavLink>
           )}
           {role === "employer" && (
-            <NavLink to="/employer" className={getLinkClass}>
-              Find Candidates
+            <>
+              <NavLink to="/employer" className={getLinkClass}>
+                Find Candidates
+              </NavLink>
+              <NavLink to="/employer/jobs" className={getLinkClass}>
+                Posted Jobs
+              </NavLink>
+            </>
+          )}
+          {role === "admin" && (
+            <NavLink to="/admin" className={getLinkClass}>
+              Approvals
             </NavLink>
           )}
-          
-          <NavLink to="/saved-matches" className={getLinkClass}>
-            Matches
-          </NavLink>
 
-          <NavLink to="/inbox" className={getLinkClass}>
-            Messages
-            {unreadCount > 0 && (
-              <span className="navbar-badge">{unreadCount}</span>
-            )}
-          </NavLink>
+          {(role === "student" || role === "employer") && (
+            <>
+              <NavLink to="/saved-matches" className={getLinkClass}>
+                Matches
+              </NavLink>
+
+              <NavLink to="/inbox" className={getLinkClass}>
+                Messages
+                {unreadCount > 0 && (
+                  <span className="navbar-badge">{unreadCount}</span>
+                )}
+              </NavLink>
+            </>
+          )}
 
           <button onClick={handleLogout} className="navbar-logout-btn">
             Logout

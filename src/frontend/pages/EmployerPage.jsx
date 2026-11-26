@@ -16,6 +16,8 @@ export default function EmployerPage() {
   });
 
   const [results, setResults] = useState([]);
+  const [postedJobId, setPostedJobId] = useState(null);
+  const [postedNotice, setPostedNotice] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -37,24 +39,31 @@ export default function EmployerPage() {
     event.preventDefault();
     setLoading(true);
     setError("");
+    setPostedNotice("");
     setResults([]);
 
     try {
-      // EXPLICITLY MAP camelCase state to snake_case payload
       const payload = {
         company: form.company,
         job_title: form.jobTitle,
         description: form.description,
         required_skills: form.requiredSkills,
         county: form.county,
-        experience_level: form.experienceLevel
+        experience_level: form.experienceLevel,
       };
 
-      // Pass the correctly formatted payload to your api.js function
       const response = await matchEmployerCandidates(payload);
 
-      const returnedResults = response.results || response.matches || response.candidates || [];
+      const returnedResults =
+        response.results || response.matches || response.candidates || [];
       setResults(returnedResults);
+      setPostedJobId(response.job_id || null);
+
+      if (response.job_id) {
+        setPostedNotice(
+          `"${form.jobTitle}" has been saved to Posted Jobs and matched against candidates.`
+        );
+      }
     } catch (err) {
       setError(err.message || "Unable to find matching candidates.");
       if (err.message.includes("401") || err.message.includes("Unauthorized")) {
@@ -188,7 +197,15 @@ export default function EmployerPage() {
 
           <ErrorBanner message={error} onDismiss={() => setError("")} />
 
-          {loading && <Spinner message="Comparing the opportunity with candidate profiles..." />}
+          {postedNotice && (
+            <div className="success-message banner-spaced">
+              {postedNotice}
+            </div>
+          )}
+
+          {loading && (
+            <Spinner message="Comparing the opportunity with candidate profiles..." />
+          )}
 
           {!loading && !error && results.length === 0 && (
             <Card className="empty-state">
@@ -204,7 +221,11 @@ export default function EmployerPage() {
             results.map((candidate, index) => (
               <CandidateCard
                 key={candidate.id}
-                candidate={candidate}
+                candidate={{
+                  ...candidate,
+                  job_id: candidate.job_id || postedJobId,
+                  job_title: candidate.job_title || form.jobTitle,
+                }}
                 rank={index + 1}
                 searchedJobTitle={form.jobTitle}
               />

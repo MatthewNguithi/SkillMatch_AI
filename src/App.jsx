@@ -4,11 +4,13 @@ import HomePage from "./frontend/pages/HomePage";
 import StudentPage from "./frontend/pages/StudentPage";
 import AdminPage from "./frontend/pages/AdminPage";
 import EmployerPage from "./frontend/pages/EmployerPage";
+import PostedJobsPage from "./frontend/pages/PostedJobsPage";
 import LoginPage from "./frontend/pages/LoginPage";
 import InboxPage from "./frontend/pages/InboxPage";
 import RegistrationPage from "./frontend/pages/Registration/RegistrationPage";
 import SavedMatchesPage from "./frontend/pages/SavedMatchesPages";
 import { ProtectedRoute, GuestRoute } from "./frontend/components/ProtectedRoutes";
+import CandidateProfilePage from "./frontend/components/CandidateProfilePage";
 import "./frontend/styles/global.css";
 
 export default function App() {
@@ -36,6 +38,8 @@ export default function App() {
             {/* Employer-Only Route */}
             <Route element={<ProtectedRoute allowedRoles={["employer"]} />}>
               <Route path="/employer" element={<EmployerPage />} />
+              <Route path="/employer/jobs" element={<PostedJobsPage />} />
+              <Route path="/employer/candidate/:studentUserId" element={<CandidateProfilePage />} />
             </Route>
 
             {/* Admin-Only Route */}
